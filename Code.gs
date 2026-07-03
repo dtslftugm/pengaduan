@@ -3,9 +3,19 @@
  * Bagian 1: LockService, Helper, dan doPost (Submission & Upload)
  */
 
+// Konfigurasi Spreadsheet ID (Wajib jika script unbound / tidak melekat langsung pada Spreadsheet)
+var SPREADSHEET_ID = "10S7RpwfsuA-Jf9ddy-GSEMoUGBYzhbQjxbIV7FvfxoY";
+
+function getSpreadsheet() {
+  if (SPREADSHEET_ID && SPREADSHEET_ID !== "") {
+    return SpreadsheetApp.openById(SPREADSHEET_ID);
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 // Helper untuk mengambil nilai konfigurasi dari sheet Config
 function getConfigValue(key) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Config");
   if (!sheet) return null;
   
@@ -20,7 +30,7 @@ function getConfigValue(key) {
 
 // Helper untuk menghasilkan ID_Pengaduan (Format: ADU-YYYYMMDD-XXXX)
 function generateComplaintId() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) return null;
   
@@ -93,7 +103,7 @@ function uploadFileToDrive(base64Data, mimeType, originalFileName, complaintId, 
 
 // Helper untuk mengambil email Staf berdasarkan kategori
 function getStaffEmails(kategori) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Users");
   if (!sheet) return [];
   
@@ -113,7 +123,7 @@ function getStaffEmails(kategori) {
 
 // Helper untuk mengambil seluruh email Supervisor
 function getSupervisorEmails() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Users");
   if (!sheet) return [];
   
@@ -180,7 +190,7 @@ function doPost(e) {
 
 // Fungsi aksi: Submit Pengaduan baru
 function submitPengaduanAction(params) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) {
     return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
@@ -346,7 +356,7 @@ function emailSenderFilter(email) {
 
 // Helper untuk autentikasi user Staf / Supervisor
 function authenticateUser(email, password, kategoriRequired) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Users");
   if (!sheet) return { authorized: false, role: "" };
   
@@ -375,7 +385,7 @@ function authenticateUser(email, password, kategoriRequired) {
 
 // Aksi update status oleh Staf atau Supervisor
 function updateStatusAction(params) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) {
     return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
@@ -506,7 +516,7 @@ function sendStatusUpdateEmail(id, namaPengirim, emailPengirim, status, catatan,
 
 // Aksi mengajukan bantahan (rebuttal) oleh Pengirim/Pelapor
 function submitBantahanAction(params) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) {
     return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
@@ -584,7 +594,7 @@ function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantah
   var subject = "[URGENT - BANTAHAN PELAPOR] Pengaduan " + id + " Dibantah";
   
   var htmlBody = "<h3>Pemberitahuan Mendesak (Bantahan Pelapor)</h3>" +
-    "<p>Pelapor atas nama <b>" + namaPengirim + "</b> mengajukan bantahan/sanggahan atas penyelesaian pengaduan dengan ID: <b>" + id +</b> (Bagian: <b>" + kategori + "</b>).</p>" +
+    "<p>Pelapor atas nama <b>" + namaPengirim + "</b> mengajukan bantahan/sanggahan atas penyelesaian pengaduan dengan ID: <b>" + id + "</b> (Bagian: <b>" + kategori + "</b>).</p>" +
     "<p><b>Alasan Sanggahan Pelapor:</b></p>" +
     "<blockquote style='border-left: 4px solid #e76f51; padding-left: 10px; margin-left: 10px; color: #b23b3b; font-weight: bold;'>" + alasanBantahan + "</blockquote>";
     
@@ -653,7 +663,7 @@ function doGet(e) {
 
 // Aksi GET: Mengambil status detail untuk Pengirim
 function getStatusAction(params) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) return { success: false, message: "Sheet tidak ditemukan." };
   
@@ -706,7 +716,7 @@ function verifyStaffAction(params) {
   
   if (id && token) {
     // Verifikasi secure token-link dari email staf
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var ss = getSpreadsheet();
     var sheet = ss.getSheetByName("Pengaduan");
     if (!sheet) return { success: false, message: "Sheet tidak ditemukan." };
     
@@ -776,7 +786,7 @@ function getAllReportsAction(params) {
     return { success: false, message: "Kredensial tidak valid." };
   }
   
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
   
@@ -836,7 +846,7 @@ function getStatsAction(params) {
     return { success: false, message: "Kredensial tidak valid." };
   }
   
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
   if (!sheet) return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
   

@@ -31,7 +31,10 @@ Dokumen ini mencatat riwayat pengembangan, status fitur, bug yang ditemukan, sol
 
 ## 🐛 Log Bug & Masalah (Bug Tracker)
 
-*Belum ada bug yang tercatat saat ini.*
+* **[FIXED] Standalone Script Execution Error**: Ketika script GAS di-deploy sebagai standalone (unbound) script, pemanggilan `SpreadsheetApp.getActiveSpreadsheet()` mengembalikan `null` dan mengakibatkan error fatal.
+  * *Solusi*: Ditambahkan konstanta `SPREADSHEET_ID` di bagian atas file `Code.gs` dan `Setup.gs` beserta fungsi helper `getSpreadsheet()` yang membuka spreadsheet menggunakan `SpreadsheetApp.openById(id)` secara otomatis dengan fallback aman ke `getActiveSpreadsheet()`. Semua pemanggilan spreadsheet global digantikan oleh `getSpreadsheet()`.
+* **[FITUR] Format WhatsApp Link Otomatis**: Pengguna menginput nomor telepon mentah atau link WhatsApp di form pengaduan.
+  * *Solusi*: Mengimplementasikan fungsi helper `formatWhatsAppLink()` di `js/app.js` yang membersihkan nomor telepon (mengganti awalan `0` dengan kode negara `62` Indonesia) menjadi format tautan universal `https://wa.me/62...`. Ditambahkan pula elemen UI di `track.html` dan `admin.html` agar nomor WhatsApp tersebut tampil sebagai tautan yang dapat diklik langsung oleh staf/admin untuk mempermudah komunikasi tindak lanjut.
 
 ---
 

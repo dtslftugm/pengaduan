@@ -3,8 +3,18 @@
  * Sistem Pengaduan, Kritik, dan Saran DTSL FT UGM
  */
 
+// Konfigurasi Spreadsheet ID (Wajib jika script unbound / tidak melekat langsung pada Spreadsheet)
+var SPREADSHEET_ID = "10S7RpwfsuA-Jf9ddy-GSEMoUGBYzhbQjxbIV7FvfxoY";
+
+function getSpreadsheet() {
+  if (SPREADSHEET_ID && SPREADSHEET_ID !== "") {
+    return SpreadsheetApp.openById(SPREADSHEET_ID);
+  }
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function initDatabase() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getSpreadsheet();
   
   // 1. Setup Sheet: Pengaduan
   var sheetPengaduan = ss.getSheetByName("Pengaduan");
