@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lacak Status Pengaduan - DTSL FT UGM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-section">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0d233a" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="logo-text">
+          <span class="logo-title">Aspirasi & Pengaduan</span>
+          <span class="logo-subtitle">DTSL FT UGM</span>
+        </div>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="index.html" class="nav-link">Buat Laporan</a></li>
+        <li><a href="track.html" class="nav-link active">Lacak Status</a></li>
+        <li><a href="admin.html" class="nav-link">Portal Staf</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Lacak Status Laporan</h1>
+      <p>Masukkan ID Pengaduan dan Token Anda untuk memantau status tindak lanjut laporan.</p>
+    </div>
+  </section>
+
+  <!-- Main Content -->
+  <main class="container" style="margin-top: 20px;">
+    
+    <!-- Search Box -->
+    <div class="card-wrapper" id="searchCard" style="max-width: 600px; margin: 0 auto 40px;">
+      <form id="formTrackSearch">
+        <div class="form-group">
+          <label for="searchId">ID Pengaduan *</label>
+          <input type="text" id="searchId" placeholder="Format: ADU-YYYYMMDD-XXXX" required>
+        </div>
+        <div class="form-group">
+          <label for="searchToken">Token Akses *</label>
+          <input type="text" id="searchToken" placeholder="Masukkan 16 karakter token Anda" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%;" id="btnSearchTrack">Cari Laporan</button>
+      </form>
+    </div>
+
+    <!-- Status Detail Container (Initially Hidden) -->
+    <div id="trackingDetailContainer" style="display: none;">
+      
+      <!-- Stepper / Progress Status -->
+      <div class="card-wrapper">
+        <h3 style="color: var(--primary); margin-bottom: 20px; font-weight: 700;">Progress Penanganan</h3>
+        
+        <div class="stepper-container">
+          <div class="step-progress-line" id="stepProgressLine"></div>
+          
+          <div class="step-item" id="stepPending">
+            <div class="step-node">1</div>
+            <div class="step-label">Diajukan<br><span style="font-size: 11px; font-weight: normal; color: #64748b;" id="timePending">-</span></div>
+          </div>
+          
+          <div class="step-item" id="stepDiproses">
+            <div class="step-node">2</div>
+            <div class="step-label">Diproses<br><span style="font-size: 11px; font-weight: normal; color: #64748b;" id="timeDiproses">-</span></div>
+          </div>
+          
+          <div class="step-item" id="stepSelesai">
+            <div class="step-node" id="nodeFinal">3</div>
+            <div class="step-label" id="labelFinal">Selesai/Ditolak<br><span style="font-size: 11px; font-weight: normal; color: #64748b;" id="timeFinal">-</span></div>
+          </div>
+        </div>
+
+        <!-- Alert Bantahan Status -->
+        <div id="bantahanBanner" class="disclaimer-banner" style="display: none; border-color: var(--danger); background-color: rgba(231, 111, 81, 0.05); margin-top: 20px;">
+          <span class="disclaimer-title" style="color: var(--danger);">⚠️ Laporan dalam Sanggahan/Bantahan</span>
+          <p class="disclaimer-text">
+            Anda telah mengajukan sanggahan terhadap resolusi staf. Status pengaduan saat ini kembali ditinjau oleh staf dan dipantau langsung oleh Supervisor.
+          </p>
+        </div>
+      </div>
+
+      <!-- Detail Laporan -->
+      <div class="detail-box">
+        <div class="detail-header">
+          <span class="detail-title" id="detComplaintId">ADU-XXXX</span>
+          <span class="badge" id="detStatusBadge">Pending</span>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">Tanggal Masuk:</div>
+          <div class="detail-value" id="detTanggal">-</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Kategori Layanan:</div>
+          <div class="detail-value" id="detKategori">-</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Pengirim:</div>
+          <div class="detail-value" id="detPengirim">-</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Email:</div>
+          <div class="detail-value" id="detEmail">-</div>
+        </div>
+        <div class="detail-row" style="margin-bottom: 20px;">
+          <div class="detail-label">Isi Laporan:</div>
+          <div class="detail-value" style="white-space: pre-line; background-color: var(--neutral-light); padding: 12px; border-radius: var(--border-radius-sm); margin-top: 4px;" id="detIsi">-</div>
+        </div>
+        
+        <div class="detail-row" id="detFileRow" style="display: none;">
+          <div class="detail-label">Lampiran Pengirim:</div>
+          <div class="detail-value">
+            <a href="#" id="detFileLink" target="_blank" class="disclaimer-link">Buka Berkas Lampiran 📁</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tanggapan & Resolusi Staf -->
+      <div class="detail-box" id="stafResponseBox" style="display: none;">
+        <div class="detail-header" style="border-color: var(--secondary);">
+          <span class="detail-title" style="color: var(--secondary);">Tanggapan & Bukti dari Staf</span>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Catatan Staf:</div>
+          <div class="detail-value" style="font-style: italic; white-space: pre-line;" id="detCatatanStaf">-</div>
+        </div>
+        <div class="detail-row" id="detBuktiStafRow" style="display: none;">
+          <div class="detail-label">Berkas Bukti Staf:</div>
+          <div class="detail-value">
+            <a href="#" id="detBuktiStafLink" target="_blank" class="disclaimer-link">Buka Berkas Bukti Penyelesaian 📁</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat Sanggahan / Bantahan Pengirim -->
+      <div class="detail-box" id="rebuttalHistoryBox" style="display: none; border-color: var(--danger);">
+        <div class="detail-header" style="border-color: var(--danger);">
+          <span class="detail-title" style="color: var(--danger);">Detail Sanggahan Anda</span>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Alasan Sanggahan:</div>
+          <div class="detail-value" style="white-space: pre-line;" id="detAlasanBantahan">-</div>
+        </div>
+        <div class="detail-row" id="detBantahanFileRow" style="display: none;">
+          <div class="detail-label">Lampiran Bukti Sanggahan:</div>
+          <div class="detail-value">
+            <a href="#" id="detBantahanFileLink" target="_blank" class="disclaimer-link">Buka Berkas Sanggahan 📁</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rebuttal Form Section (Visible only when status is Selesai or Ditolak) -->
+      <div class="rebuttal-section" id="rebuttalFormContainer" style="display: none;">
+        <h3 style="color: var(--danger); margin-bottom: 8px;">Apakah Penyelesaian Kurang Memuaskan?</h3>
+        <p style="font-size: 0.9rem; color: #64748b; margin-bottom: 20px;">
+          Jika Anda mendeteksi manipulasi status, atau tanggapan staf tidak menyelesaikan masalah sesungguhnya, Anda dapat mengajukan <strong>sanggahan/bantahan resmi</strong>. 
+          Kasus ini akan otomatis dilaporkan ke Supervisor untuk ditinjau.
+        </p>
+        
+        <button type="button" class="btn btn-secondary" id="btnShowRebuttalForm" style="background-color: var(--danger);">Ajukan Sanggahan Resmi</button>
+        
+        <form id="formRebuttal" style="display: none; margin-top: 20px;">
+          <div class="form-group">
+            <label for="alasanBantahan">Alasan Sanggahan / Detail Keberatan *</label>
+            <textarea id="alasanBantahan" rows="4" placeholder="Jelaskan secara rinci mengapa penyelesaian staf belum memuaskan atau terindikasi tidak benar..." required></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label>Berkas Bukti Sanggahan (Opsional, Maks 3MB)</label>
+            
+            <div class="attachment-toggle">
+              <button type="button" class="toggle-btn active" id="btnToggleBantahanUpload">Unggah Berkas</button>
+              <button type="button" class="toggle-btn" id="btnToggleBantahanLink">Tempel Link Dokumen</button>
+            </div>
+
+            <!-- Upload Area -->
+            <div id="uploadBantahanContainer">
+              <div class="upload-area" id="dropzoneBantahan">
+                <div class="upload-icon">📁</div>
+                <span class="upload-text">Klik untuk mengambil foto/mengunggah dokumen bukti</span>
+                <input type="file" id="fileBantahanInput" accept="image/*,application/pdf" style="display: none;">
+              </div>
+              <div class="progress-container" id="uploadBantahanProgressContainer">
+                <div class="progress-bar" id="uploadBantahanProgressBar"></div>
+              </div>
+              <div class="upload-status-info" id="uploadBantahanStatusText" style="display: none;">
+                <span>Menyiapkan berkas...</span>
+                <button type="button" class="retry-btn" id="btnRetryBantahanUpload">Gagal. Coba Lagi ↻</button>
+              </div>
+            </div>
+
+            <!-- Link Area -->
+            <div id="linkBantahanContainer" style="display: none;">
+              <input type="text" id="fileBantahanLinkUrl" placeholder="Masukkan link dokumen alternatif (Google Drive, dll)">
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+            <button type="button" class="btn" id="btnCancelRebuttal" style="background-color: #cbd5e1; color: var(--neutral-dark);">Batal</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitRebuttal" style="background-color: var(--danger);">Kirim Sanggahan</button>
+          </div>
+        </form>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

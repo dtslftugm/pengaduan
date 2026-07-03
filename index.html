@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Aspirasi & Pengaduan - DTSL FT UGM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-section">
+        <!-- SVG UGM Inspired Logo -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0d233a" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="logo-text">
+          <span class="logo-title">Aspirasi & Pengaduan</span>
+          <span class="logo-subtitle">DTSL FT UGM</span>
+        </div>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="index.html" class="nav-link active">Buat Laporan</a></li>
+        <li><a href="track.html" class="nav-link">Lacak Status</a></li>
+        <li><a href="admin.html" class="nav-link">Portal Staf</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Sampaikan Aspirasi Anda</h1>
+      <p>Sistem pengaduan, kritik, dan saran resmi Departemen Teknik Sipil dan Lingkungan, Fakultas Teknik UGM.</p>
+    </div>
+  </section>
+
+  <!-- Form Content -->
+  <main class="container" style="margin-top: 20px;">
+    <div class="card-wrapper">
+      
+      <!-- Disclaimer Banner -->
+      <div class="disclaimer-banner">
+        <span class="disclaimer-title">Pemberitahuan Privasi Data</span>
+        <p class="disclaimer-text">
+          Sistem ini mencatat nama, status akademik, email, dan nomor kontak Anda agar staf kami dapat menghubungi Anda kembali atau memberikan notifikasi otomatis saat ada perubahan progress. 
+          Jika Anda memerlukan pelaporan yang <strong>sepenuhnya rahasia (anonim penuh)</strong>, silakan gunakan platform whistleblower kami di 
+          <a href="https://ugm.id/sempritan" class="disclaimer-link" target="_blank">ugm.id/sempritan</a>.
+        </p>
+      </div>
+
+      <form id="formAduan">
+        <div class="form-grid">
+          
+          <!-- Nama -->
+          <div class="form-group">
+            <label for="nama">Nama Lengkap *</label>
+            <input type="text" id="nama" name="nama" placeholder="Masukkan nama lengkap Anda" required>
+          </div>
+
+          <!-- Status Akademik -->
+          <div class="form-group">
+            <label for="status">Status Pengirim *</label>
+            <select id="status" name="status" required>
+              <option value="" disabled selected>Pilih status akademik Anda</option>
+              <option value="Mahasiswa S1">Mahasiswa S1</option>
+              <option value="Mahasiswa S2">Mahasiswa S2</option>
+              <option value="Mahasiswa S3">Mahasiswa S3</option>
+              <option value="Postdoctor">Postdoctor</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+
+          <!-- Email UGM -->
+          <div class="form-group">
+            <label for="email">Email UGM / Email Aktif *</label>
+            <input type="email" id="email" name="email" placeholder="contoh@mail.ugm.ac.id" required>
+          </div>
+
+          <!-- Nomor HP -->
+          <div class="form-group">
+            <label for="noHp">Nomor HP / WhatsApp (Aktif)</label>
+            <input type="tel" id="noHp" name="noHp" placeholder="08xxxxxxxxxx">
+          </div>
+
+          <!-- Kategori Layanan -->
+          <div class="form-group full-width">
+            <label for="kategori">Kategori Layanan yang Dituju *</label>
+            <select id="kategori" name="kategori" required>
+              <option value="" disabled selected>Pilih kategori layanan</option>
+              <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana (Kerusakan fasilitas, gedung, dll)</option>
+              <option value="Layanan Keuangan">Layanan Keuangan (Uang Kuliah Tunggal, beasiswa, dll)</option>
+              <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM (Administrasi tugas akhir, pengabdian, dll)</option>
+              <option value="Layanan Laboratorium">Layanan Laboratorium (Peralatan lab, bahan lab, perizinan, dll)</option>
+              <option value="Layanan IT">Layanan IT (Akses wifi, website, akun email, dll)</option>
+              <option value="Layanan lainnya">Layanan Lainnya</option>
+            </select>
+          </div>
+
+          <!-- Isi Pengaduan -->
+          <div class="form-group full-width">
+            <label for="isi">Isi Laporan / Detail Aspirasi *</label>
+            <textarea id="isi" name="isi" rows="6" placeholder="Tuliskan secara detail pengaduan, saran, atau kritik Anda..." required></textarea>
+          </div>
+
+          <!-- File / Link Lampiran -->
+          <div class="form-group full-width">
+            <label>Berkas Lampiran Pendukung (Foto / Dokumen)</label>
+            
+            <!-- Toggle between upload and link -->
+            <div class="attachment-toggle">
+              <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 3MB)</button>
+              <button type="button" class="toggle-btn" id="btnToggleLink">Tempel Link Dokumen</button>
+            </div>
+
+            <!-- Upload Area -->
+            <div id="uploadContainer">
+              <div class="upload-area" id="dropzone">
+                <div class="upload-icon">📁</div>
+                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk membuka kamera/galeri</strong></span>
+                <span class="upload-limit">Format yang didukung: JPG, PNG, PDF, DOC, DOCX. Maksimal 3MB.</span>
+                <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx" style="display: none;">
+              </div>
+              
+              <!-- Progress indicator -->
+              <div class="progress-container" id="uploadProgressContainer">
+                <div class="progress-bar" id="uploadProgressBar"></div>
+              </div>
+              <div class="upload-status-info" id="uploadStatusText" style="display: none;">
+                <span>Menyiapkan berkas...</span>
+                <button type="button" class="retry-btn" id="btnRetryUpload">Gagal. Coba Lagi ↻</button>
+              </div>
+            </div>
+
+            <!-- Link Area -->
+            <div id="linkContainer" style="display: none;">
+              <input type="text" id="fileLinkUrl" placeholder="Masukkan link dokumen (contoh: Google Drive, OneDrive, dll)">
+            </div>
+          </div>
+
+        </div>
+
+        <div style="margin-top: 30px; text-align: right;">
+          <button type="submit" class="btn btn-primary" id="btnSubmit">
+            <span>Kirim Pengaduan</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </main>
+
+  <!-- Success Modal -->
+  <div class="modal-overlay" id="successModal">
+    <div class="success-card">
+      <div class="success-icon">✓</div>
+      <h2>Laporan Berhasil Terkirim</h2>
+      <p>Terima kasih atas aspirasi Anda. Sistem telah merekam laporan dan mengirimkan tanda terima ke email Anda.</p>
+      
+      <div class="info-box">
+        <div class="info-item">
+          <span class="info-label">ID Pengaduan:</span>
+          <span class="info-val" id="resComplaintId">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Email Penerima Notifikasi:</span>
+          <span class="info-val" id="resEmail">-</span>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; justify-content: center;">
+        <a id="btnGoTrack" href="#" class="btn btn-primary">Pantau Status</a>
+        <button type="button" class="btn btn-secondary" onclick="closeSuccessModal()">Kembali</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

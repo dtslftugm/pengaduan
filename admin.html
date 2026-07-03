@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Staf & Supervisor - DTSL FT UGM</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="container nav-container">
+      <a href="index.html" class="logo-section">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="#0d233a" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 17l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 12l10 5 10-5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="logo-text">
+          <span class="logo-title">Aspirasi & Pengaduan</span>
+          <span class="logo-subtitle">DTSL FT UGM</span>
+        </div>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="index.html" class="nav-link">Buat Laporan</a></li>
+        <li><a href="track.html" class="nav-link">Lacak Status</a></li>
+        <li><a href="admin.html" class="nav-link active">Portal Staf</a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero" id="adminHero">
+    <div class="container">
+      <h1 id="heroTitle">Portal Manajemen Laporan</h1>
+      <p id="heroSubtitle">Masuk dengan kredensial staf untuk memperbarui status atau meninjau statistik kinerja.</p>
+    </div>
+  </section>
+
+  <!-- Main Content Area -->
+  <main class="container" style="margin-top: 20px;">
+    
+    <!-- 1. LOGIN PANEL (Initially Visible if not logged in) -->
+    <div class="card-wrapper login-panel" id="loginPanel">
+      <h3 style="color: var(--primary); margin-bottom: 20px; font-weight: 700; text-align: center;">Login Kredensial</h3>
+      <form id="formLogin">
+        <div class="form-group">
+          <label for="loginEmail">Email Staf / UGM *</label>
+          <input type="email" id="loginEmail" placeholder="contoh@mail.ugm.ac.id" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password *</label>
+          <input type="password" id="loginPassword" placeholder="Masukkan password Anda" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 10px;" id="btnLogin">Masuk</button>
+      </form>
+    </div>
+
+    <!-- 2. QUICK ACTION PANEL (For direct Email links with Token) -->
+    <div id="quickActionPanel" style="display: none;">
+      <div class="card-wrapper" style="border: 2px solid var(--secondary);">
+        <h3 style="color: var(--primary); margin-bottom: 16px; font-weight: 700;">Aksi Cepat Update Status (Token Terverifikasi)</h3>
+        
+        <!-- Complaint Detail Box -->
+        <div class="detail-box">
+          <div class="detail-header">
+            <span class="detail-title" id="quickId">ADU-XXXX</span>
+            <span class="badge" id="quickStatusBadge">Pending</span>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Pengirim:</div>
+            <div class="detail-value" id="quickPengirim">-</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Status Akademik:</div>
+            <div class="detail-value" id="quickStatusPengirim">-</div>
+          </div>
+          <div class="detail-row">
+            <div class="detail-label">Kategori Layanan:</div>
+            <div class="detail-value" id="quickKategori">-</div>
+          </div>
+          <div class="detail-row" style="margin-bottom: 16px;">
+            <div class="detail-label">Isi Laporan:</div>
+            <div class="detail-value" style="white-space: pre-line; background-color: var(--neutral-light); padding: 12px; border-radius: var(--border-radius-sm); margin-top: 4px;" id="quickIsi">-</div>
+          </div>
+          <div class="detail-row" id="quickFileRow" style="display: none;">
+            <div class="detail-label">Lampiran:</div>
+            <div class="detail-value"><a href="#" id="quickFileLink" target="_blank" class="disclaimer-link">Buka Berkas Lampiran 📁</a></div>
+          </div>
+
+          <!-- If Rebuttal exists -->
+          <div id="quickRebuttalBox" style="display: none; background-color: #fff1f2; padding: 16px; border-radius: var(--border-radius-sm); border: 1.5px solid rgba(225, 29, 72, 0.2); margin-top: 20px;">
+            <span class="detail-title" style="color: var(--danger); font-size: 1rem; display: block; margin-bottom: 8px;">⚠️ Detail Sanggahan Pelapor (Bantahan)</span>
+            <div class="detail-row">
+              <div class="detail-label">Alasan Sanggahan:</div>
+              <div class="detail-value" id="quickAlasanBantahan">-</div>
+            </div>
+            <div class="detail-row" id="quickBantahanFileRow" style="display: none;">
+              <div class="detail-label">Bukti Sanggahan:</div>
+              <div class="detail-value"><a href="#" id="quickBantahanFileLink" target="_blank" class="disclaimer-link">Buka Berkas Sanggahan 📁</a></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Form -->
+        <form id="formQuickUpdate" style="margin-top: 24px;">
+          <div class="form-group">
+            <label for="quickNewStatus">Update Status Progress *</label>
+            <select id="quickNewStatus" required>
+              <option value="" disabled selected>Pilih Status Baru</option>
+              <option value="Diproses">Diproses (Dalam Penanganan)</option>
+              <option value="Selesai">Selesai (Ditangani & Closed)</option>
+              <option value="Ditolak">Ditolak</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="quickCatatan">Catatan / Tanggapan Staf *</label>
+            <textarea id="quickCatatan" rows="4" placeholder="Berikan penjelasan, instruksi tindak lanjut, atau alasan penolakan..." required></textarea>
+          </div>
+
+          <div class="form-group">
+            <label>Unggah Berkas Bukti Penyelesaian (Opsional untuk Diproses, Wajib/Sangat Dianjurkan untuk Selesai/Ditolak. Maks 3MB)</label>
+            
+            <div class="attachment-toggle">
+              <button type="button" class="toggle-btn active" id="btnToggleQuickUpload">Unggah Berkas</button>
+              <button type="button" class="toggle-btn" id="btnToggleQuickLink">Tempel Link Dokumen</button>
+            </div>
+
+            <!-- Upload Area -->
+            <div id="uploadQuickContainer">
+              <div class="upload-area" id="dropzoneQuick">
+                <div class="upload-icon">📁</div>
+                <span class="upload-text">Klik untuk mengunggah bukti penyelesaian</span>
+                <input type="file" id="fileQuickInput" accept="image/*,application/pdf" style="display: none;">
+              </div>
+              <div class="progress-container" id="uploadQuickProgressContainer">
+                <div class="progress-bar" id="uploadQuickProgressBar"></div>
+              </div>
+              <div class="upload-status-info" id="uploadQuickStatusText" style="display: none;">
+                <span>Menyiapkan berkas...</span>
+                <button type="button" class="retry-btn" id="btnRetryQuickUpload">Gagal. Coba Lagi ↻</button>
+              </div>
+            </div>
+
+            <!-- Link Area -->
+            <div id="linkQuickContainer" style="display: none;">
+              <input type="text" id="fileQuickLinkUrl" placeholder="Masukkan link dokumen alternatif (Google Drive, dll)">
+            </div>
+          </div>
+
+          <div style="text-align: right; margin-top: 24px;">
+            <button type="submit" class="btn btn-primary" id="btnQuickSubmit">Simpan & Kirim Notifikasi</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- 3. DASHBOARD MAIN PANEL (For Logged In Staff / Supervisor) -->
+    <div id="dashboardPanel" style="display: none;">
+      
+      <!-- User Greetings Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background-color: var(--primary); color: white; padding: 20px 24px; border-radius: var(--border-radius-md);">
+        <div>
+          <h3 id="dashWelcomeUser" style="font-weight: 700;">Selamat Datang, -</h3>
+          <span id="dashRoleLabel" style="font-size: 0.85rem; color: #94a3b8; font-weight: 500;">Role: Staff | Bagian: -</span>
+        </div>
+        <button class="btn btn-primary" style="background-color: var(--danger); font-size: 0.85rem; padding: 8px 16px;" onclick="handleLogout()">Keluar ⎋</button>
+      </div>
+
+      <!-- Navigation Tabs (Only visible to Supervisor) -->
+      <div class="attachment-toggle" id="supervisorTabs" style="display: none; margin-bottom: 24px;">
+        <button class="toggle-btn active" id="tabBtnList" onclick="switchTab('list')">Daftar Pengaduan</button>
+        <button class="toggle-btn" id="tabBtnStats" onclick="switchTab('stats')">Laporan Kinerja (Statistik)</button>
+      </div>
+
+      <!-- TAB Content 1: Daftar Pengaduan -->
+      <div id="tabContentList">
+        
+        <!-- Table Filters -->
+        <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 200px;">
+            <select id="filterStatus" onchange="applyFilters()">
+              <option value="ALL">Semua Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Diproses">Diproses</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Ditolak">Ditolak</option>
+              <option value="Bantahan">Bantahan (Sanggahan Pelapor)</option>
+            </select>
+          </div>
+          <div style="flex: 1; min-width: 200px;" id="filterKategoriWrapper">
+            <select id="filterKategori" onchange="applyFilters()">
+              <option value="ALL">Semua Kategori Layanan</option>
+              <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana</option>
+              <option value="Layanan Keuangan">Layanan Keuangan</option>
+              <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM</option>
+              <option value="Layanan Laboratorium">Layanan Laboratorium</option>
+              <option value="Layanan IT">Layanan IT</option>
+              <option value="Layanan lainnya">Layanan lainnya</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Tanggal</th>
+                <th>Kategori</th>
+                <th>Nama Pengirim</th>
+                <th>Status</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="reportsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: #64748b; padding: 30px;">Memuat data pengaduan...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB Content 2: Laporan Kinerja (Supervisor Stats) -->
+      <div id="tabContentStats" style="display: none;">
+        
+        <!-- Supervisor Delay alerts -->
+        <div class="supervisor-alert-box" id="negligenceAlertBox" style="display: none;">
+          <h4 style="color: var(--danger); margin-bottom: 12px; font-weight: 700;">⚠️ Peringatan Keterlambatan Respon Staf (>3 Hari)</h4>
+          <div id="negligentListContainer">
+            <!-- Alert items here -->
+          </div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="stats-grid">
+          <div class="stats-card">
+            <span class="stats-title">Total Aduan</span>
+            <span class="stats-num" id="statTotalReports">0</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-title">Belum Ditangani (Pending)</span>
+            <span class="stats-num" id="statPendingReports" style="color: var(--accent);">0</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-title">Dalam Sanggahan (Bantahan)</span>
+            <span class="stats-num" id="statBantahanReports" style="color: var(--danger);">0</span>
+          </div>
+          <div class="stats-card">
+            <span class="stats-title">Rata-rata Penyelesaian</span>
+            <span class="stats-num" id="statAvgResTime">0 <span style="font-size: 1rem; font-weight: normal; color: #64748b;">Hari</span></span>
+          </div>
+        </div>
+
+        <!-- Detailed Stats Table (Per Kategori) -->
+        <div class="card-wrapper">
+          <h3 style="color: var(--primary); margin-bottom: 20px; font-weight: 700;">Rata-rata Durasi Respon per Kategori Layanan</h3>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Kategori Layanan</th>
+                  <th>Jumlah Laporan</th>
+                  <th>Rata-rata Durasi Penyelesaian</th>
+                </tr>
+              </thead>
+              <tbody id="categoryStatsTableBody">
+                <!-- Stat rows will load here -->
+              </tbody>
+            </table>
+          </div>
+          
+          <div style="margin-top: 24px; text-align: right;">
+            <button class="btn btn-secondary" onclick="window.print()">Cetak Laporan Kinerja ⎙</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- 4. MODAL REVIEW & UPDATE STATUS (For Staf Dashboard) -->
+  <div class="modal-overlay" id="reviewModal">
+    <div class="success-card" style="max-width: 700px; text-align: left;">
+      <div class="detail-header">
+        <span class="detail-title" id="revId">ADU-XXXX</span>
+        <span class="badge" id="revStatusBadge">Pending</span>
+      </div>
+
+      <div style="max-height: 45vh; overflow-y: auto; padding-right: 8px; margin-bottom: 20px;">
+        <div class="detail-row">
+          <div class="detail-label">Pengirim:</div>
+          <div class="detail-value" id="revPengirim">-</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Status Akademik:</div>
+          <div class="detail-value" id="revStatusPengirim">-</div>
+        </div>
+        <div class="detail-row">
+          <div class="detail-label">Kategori Layanan:</div>
+          <div class="detail-value" id="revKategori">-</div>
+        </div>
+        <div class="detail-row" style="margin-bottom: 12px;">
+          <div class="detail-label">Detail Laporan:</div>
+          <div class="detail-value" style="white-space: pre-line; background-color: var(--neutral-light); padding: 12px; border-radius: var(--border-radius-sm); margin-top: 4px;" id="revIsi">-</div>
+        </div>
+        <div class="detail-row" id="revFileRow" style="display: none;">
+          <div class="detail-label">Lampiran:</div>
+          <div class="detail-value"><a href="#" id="revFileLink" target="_blank" class="disclaimer-link">Buka Berkas Lampiran 📁</a></div>
+        </div>
+
+        <!-- Rebuttal display if status is Bantahan -->
+        <div id="revRebuttalBox" style="display: none; background-color: #fff1f2; padding: 16px; border-radius: var(--border-radius-sm); border: 1.5px solid rgba(225, 29, 72, 0.2); margin-top: 16px;">
+          <span class="detail-title" style="color: var(--danger); font-size: 1rem; display: block; margin-bottom: 8px;">⚠️ Detail Sanggahan Pelapor (Bantahan)</span>
+          <div class="detail-row">
+            <div class="detail-label">Alasan Sanggahan:</div>
+            <div class="detail-value" id="revAlasanBantahan">-</div>
+          </div>
+          <div class="detail-row" id="revBantahanFileRow" style="display: none;">
+            <div class="detail-label">Bukti Sanggahan:</div>
+            <div class="detail-value"><a href="#" id="revBantahanFileLink" target="_blank" class="disclaimer-link">Buka Berkas Sanggahan 📁</a></div>
+          </div>
+        </div>
+
+        <!-- Previous Staf Responses (if any) -->
+        <div id="revPrevResponseBox" style="display: none; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <span class="detail-title" style="color: var(--secondary); font-size: 1rem; display: block; margin-bottom: 8px;">Tanggapan Staf Sebelumnya</span>
+          <div class="detail-row">
+            <div class="detail-label">Catatan Staf:</div>
+            <div class="detail-value" id="revPrevCatatan">-</div>
+          </div>
+          <div class="detail-row" id="revPrevFileRow" style="display: none;">
+            <div class="detail-label">Bukti Staf:</div>
+            <div class="detail-value"><a href="#" id="revPrevFileLink" target="_blank" class="disclaimer-link">Buka Berkas Bukti 📁</a></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Update Form inside Review Modal -->
+      <form id="formReviewUpdate" style="border-top: 1.5px solid var(--border-color); padding-top: 20px;">
+        <div class="form-grid" style="gap: 16px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="revNewStatus">Update Status Progress *</label>
+            <select id="revNewStatus" required>
+              <option value="" disabled selected>Pilih Status Baru</option>
+              <option value="Diproses">Diproses (Dalam Penanganan)</option>
+              <option value="Selesai">Selesai (Ditangani & Closed)</option>
+              <option value="Ditolak">Ditolak</option>
+            </select>
+          </div>
+          
+          <div class="form-group full-width" style="margin-bottom: 0;">
+            <label for="revCatatan">Catatan / Tanggapan Staf *</label>
+            <textarea id="revCatatan" rows="3" placeholder="Jelaskan perkembangan pengerjaan atau berikan tanggapan penyelesaian..." required></textarea>
+          </div>
+
+          <div class="form-group full-width" style="margin-bottom: 0;">
+            <label>Unggah Berkas Bukti Penyelesaian (Maks 3MB)</label>
+            <div class="attachment-toggle">
+              <button type="button" class="toggle-btn active" id="btnToggleRevUpload">Unggah Berkas</button>
+              <button type="button" class="toggle-btn" id="btnToggleRevLink">Tempel Link Dokumen</button>
+            </div>
+            
+            <div id="uploadRevContainer">
+              <div class="upload-area" id="dropzoneRev" style="padding: 20px;">
+                <div class="upload-icon" style="font-size: 1.5rem; margin-bottom: 4px;">📁</div>
+                <span class="upload-text">Klik untuk unggah bukti</span>
+                <input type="file" id="fileRevInput" accept="image/*,application/pdf" style="display: none;">
+              </div>
+              <div class="progress-container" id="uploadRevProgressContainer">
+                <div class="progress-bar" id="uploadRevProgressBar"></div>
+              </div>
+              <div class="upload-status-info" id="uploadRevStatusText" style="display: none;">
+                <span>Menyiapkan berkas...</span>
+                <button type="button" class="retry-btn" id="btnRetryRevUpload">Gagal. Coba Lagi ↻</button>
+              </div>
+            </div>
+
+            <div id="linkRevContainer" style="display: none;">
+              <input type="text" id="fileRevLinkUrl" placeholder="Masukkan link dokumen alternatif (Google Drive, dll)">
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <button type="button" class="btn" style="background-color: #cbd5e1; color: var(--neutral-dark);" onclick="closeReviewModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnRevSubmit">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
