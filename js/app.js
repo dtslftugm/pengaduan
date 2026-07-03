@@ -4,7 +4,7 @@
  */
 
 // URL deployment Web App Google Apps Script Anda (Ganti setelah dideploy)
-const API_URL = "https://script.google.com/macros/s/AKfycbyWvB_i3B-U1Q1w6yZ_3gY-GSEMoUGBYzhbQjxbIV7FvfxoY/exec"; // Placeholder URL
+const API_URL = "https://script.google.com/macros/s/AKfycbziBjCYTKQv0GPxdh2J6qUPwNUhQHlot38w3wGJGQrY_UNZwWirm5DLvsft01e6HCzL/exec"; // Placeholder URL
 
 // Global State
 let uploadedFile = {
