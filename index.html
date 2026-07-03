@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistem Aspirasi & Pengaduan - DTSL FT UGM</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
 
   <!-- Header -->
@@ -38,20 +40,22 @@
   <!-- Form Content -->
   <main class="container" style="margin-top: 20px;">
     <div class="card-wrapper">
-      
+
       <!-- Disclaimer Banner -->
       <div class="disclaimer-banner">
         <span class="disclaimer-title">Pemberitahuan Privasi Data</span>
         <p class="disclaimer-text">
-          Sistem ini mencatat nama, status akademik, email, dan nomor kontak Anda agar staf kami dapat menghubungi Anda kembali atau memberikan notifikasi otomatis saat ada perubahan progress. 
-          Jika Anda memerlukan pelaporan yang <strong>sepenuhnya rahasia (anonim penuh)</strong>, silakan gunakan platform whistleblower kami di 
+          Sistem ini mencatat nama, status akademik, email, dan nomor kontak Anda agar staf kami dapat menghubungi Anda
+          kembali atau memberikan notifikasi otomatis saat ada perubahan progress.
+          Jika Anda memerlukan pelaporan yang <strong>sepenuhnya rahasia (anonim penuh)</strong>, silakan gunakan
+          platform kami di
           <a href="https://ugm.id/sempritan" class="disclaimer-link" target="_blank">ugm.id/sempritan</a>.
         </p>
       </div>
 
       <form id="formAduan">
         <div class="form-grid">
-          
+
           <!-- Nama -->
           <div class="form-group">
             <label for="nama">Nama Lengkap *</label>
@@ -88,10 +92,13 @@
             <label for="kategori">Kategori Layanan yang Dituju *</label>
             <select id="kategori" name="kategori" required>
               <option value="" disabled selected>Pilih kategori layanan</option>
-              <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana (Kerusakan fasilitas, gedung, dll)</option>
+              <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana (Kerusakan fasilitas, gedung, dll)
+              </option>
               <option value="Layanan Keuangan">Layanan Keuangan (Uang Kuliah Tunggal, beasiswa, dll)</option>
-              <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM (Administrasi tugas akhir, pengabdian, dll)</option>
-              <option value="Layanan Laboratorium">Layanan Laboratorium (Peralatan lab, bahan lab, perizinan, dll)</option>
+              <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM (Administrasi tugas akhir,
+                pengabdian, dll)</option>
+              <option value="Layanan Laboratorium">Layanan Laboratorium (Peralatan lab, bahan lab, perizinan, dll)
+              </option>
               <option value="Layanan IT">Layanan IT (Akses wifi, website, akun email, dll)</option>
               <option value="Layanan lainnya">Layanan Lainnya</option>
             </select>
@@ -100,13 +107,14 @@
           <!-- Isi Pengaduan -->
           <div class="form-group full-width">
             <label for="isi">Isi Laporan / Detail Aspirasi *</label>
-            <textarea id="isi" name="isi" rows="6" placeholder="Tuliskan secara detail pengaduan, saran, atau kritik Anda..." required></textarea>
+            <textarea id="isi" name="isi" rows="6"
+              placeholder="Tuliskan secara detail pengaduan, saran, atau kritik Anda..." required></textarea>
           </div>
 
           <!-- File / Link Lampiran -->
           <div class="form-group full-width">
             <label>Berkas Lampiran Pendukung (Foto / Dokumen)</label>
-            
+
             <!-- Toggle between upload and link -->
             <div class="attachment-toggle">
               <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 3MB)</button>
@@ -117,11 +125,12 @@
             <div id="uploadContainer">
               <div class="upload-area" id="dropzone">
                 <div class="upload-icon">📁</div>
-                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk membuka kamera/galeri</strong></span>
+                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk membuka
+                    kamera/galeri</strong></span>
                 <span class="upload-limit">Format yang didukung: JPG, PNG, PDF, DOC, DOCX. Maksimal 3MB.</span>
                 <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx" style="display: none;">
               </div>
-              
+
               <!-- Progress indicator -->
               <div class="progress-container" id="uploadProgressContainer">
                 <div class="progress-bar" id="uploadProgressBar"></div>
@@ -134,7 +143,8 @@
 
             <!-- Link Area -->
             <div id="linkContainer" style="display: none;">
-              <input type="text" id="fileLinkUrl" placeholder="Masukkan link dokumen (contoh: Google Drive, OneDrive, dll)">
+              <input type="text" id="fileLinkUrl"
+                placeholder="Masukkan link dokumen (contoh: Google Drive, OneDrive, dll)">
             </div>
           </div>
 
@@ -156,7 +166,7 @@
       <div class="success-icon">✓</div>
       <h2>Laporan Berhasil Terkirim</h2>
       <p>Terima kasih atas aspirasi Anda. Sistem telah merekam laporan dan mengirimkan tanda terima ke email Anda.</p>
-      
+
       <div class="info-box">
         <div class="info-item">
           <span class="info-label">ID Pengaduan:</span>
@@ -167,7 +177,7 @@
           <span class="info-val" id="resEmail">-</span>
         </div>
       </div>
-      
+
       <div style="display: flex; gap: 12px; justify-content: center;">
         <a id="btnGoTrack" href="#" class="btn btn-primary">Pantau Status</a>
         <button type="button" class="btn btn-secondary" onclick="closeSuccessModal()">Kembali</button>
@@ -177,4 +187,5 @@
 
   <script src="js/app.js"></script>
 </body>
+
 </html>
