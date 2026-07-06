@@ -752,8 +752,70 @@ tr:hover td {
   }
 }
 
+/* Admin Layout Utilities */
+.admin-dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  background-color: var(--primary);
+  color: white;
+  padding: 20px 24px;
+  border-radius: var(--border-radius-md);
+}
+
+.role-label {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.admin-list-card {
+  padding: 24px;
+  margin-bottom: 40px;
+}
+
 /* Responsiveness */
 @media (max-width: 768px) {
+  .container {
+    padding: 0 12px;
+  }
+  
+  .card-wrapper {
+    padding: 20px 16px;
+    margin-bottom: 20px;
+  }
+
+  .nav-container {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 0;
+    gap: 12px;
+  }
+  
+  .nav-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  
+  .nav-link {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+  }
+  
+  .hero {
+    padding: 30px 0 20px;
+  }
+  
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+  
+  .hero p {
+    font-size: 0.95rem;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -764,6 +826,11 @@ tr:hover td {
   
   .stats-grid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .stats-card {
+    padding: 16px 12px;
   }
   
   .stepper-container {
@@ -802,5 +869,18 @@ tr:hover td {
   
   .sidebar {
     width: 100%;
+  }
+  
+  .admin-dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .admin-list-card {
+    padding: 16px;
+    margin-bottom: 20px;
   }
 }
