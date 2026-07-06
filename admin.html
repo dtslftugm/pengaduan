@@ -162,10 +162,10 @@
     <div id="dashboardPanel" style="display: none;">
       
       <!-- User Greetings Header -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background-color: var(--primary); color: white; padding: 20px 24px; border-radius: var(--border-radius-md);">
+      <div class="admin-dash-header">
         <div>
           <h3 id="dashWelcomeUser" style="font-weight: 700;">Selamat Datang, -</h3>
-          <span id="dashRoleLabel" style="font-size: 0.85rem; color: #94a3b8; font-weight: 500;">Role: Staff | Bagian: -</span>
+          <span id="dashRoleLabel" class="role-label">Role: Staff | Bagian: -</span>
         </div>
         <button class="btn btn-primary" style="background-color: var(--danger); font-size: 0.85rem; padding: 8px 16px;" onclick="handleLogout()">Keluar ⎋</button>
       </div>
@@ -178,52 +178,55 @@
 
       <!-- TAB Content 1: Daftar Pengaduan -->
       <div id="tabContentList">
-        
-        <!-- Table Filters -->
-        <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
-          <div style="flex: 1; min-width: 200px;">
-            <select id="filterStatus" onchange="applyFilters()">
-              <option value="ALL">Semua Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Diproses">Diproses</option>
-              <option value="Selesai">Selesai</option>
-              <option value="Ditolak">Ditolak</option>
-              <option value="Bantahan">Bantahan (Sanggahan Pelapor)</option>
-            </select>
+        <div class="card-wrapper admin-list-card">
+          
+          <!-- Table Filters -->
+          <div style="display: flex; gap: 16px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+            <div style="flex: 1; min-width: 200px;">
+              <select id="filterStatus" onchange="applyFilters()">
+                <option value="ALL">Semua Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Diproses">Diproses</option>
+                <option value="Selesai">Selesai</option>
+                <option value="Ditolak">Ditolak</option>
+                <option value="Bantahan">Bantahan (Sanggahan Pelapor)</option>
+              </select>
+            </div>
+            <div style="flex: 1; min-width: 200px;" id="filterKategoriWrapper">
+              <select id="filterKategori" onchange="applyFilters()">
+                <option value="ALL">Semua Kategori Layanan</option>
+                <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana</option>
+                <option value="Layanan Keuangan">Layanan Keuangan</option>
+                <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM</option>
+                <option value="Layanan Laboratorium">Layanan Laboratorium</option>
+                <option value="Layanan IT">Layanan IT</option>
+                <option value="Layanan Akademik">Layanan Akademik</option>
+                <option value="Layanan lainnya">Layanan lainnya</option>
+              </select>
+            </div>
           </div>
-          <div style="flex: 1; min-width: 200px;" id="filterKategoriWrapper">
-            <select id="filterKategori" onchange="applyFilters()">
-              <option value="ALL">Semua Kategori Layanan</option>
-              <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana</option>
-              <option value="Layanan Keuangan">Layanan Keuangan</option>
-              <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM</option>
-              <option value="Layanan Laboratorium">Layanan Laboratorium</option>
-              <option value="Layanan IT">Layanan IT</option>
-              <option value="Layanan Akademik">Layanan Akademik</option>
-              <option value="Layanan lainnya">Layanan lainnya</option>
-            </select>
-          </div>
-        </div>
 
-        <!-- Table -->
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Tanggal</th>
-                <th>Kategori</th>
-                <th>Nama Pengirim</th>
-                <th>Status</th>
-                <th>Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="reportsTableBody">
-              <tr>
-                <td colspan="6" style="text-align: center; color: #64748b; padding: 30px;">Memuat data pengaduan...</td>
-              </tr>
-            </tbody>
-          </table>
+          <!-- Table -->
+          <div class="table-container" style="margin-bottom: 0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Tanggal</th>
+                  <th>Kategori</th>
+                  <th>Nama Pengirim</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="reportsTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; color: #64748b; padding: 30px;">Memuat data pengaduan...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          
         </div>
       </div>
 
@@ -259,9 +262,9 @@
         </div>
 
         <!-- Detailed Stats Table (Per Kategori) -->
-        <div class="card-wrapper">
-          <h3 style="color: var(--primary); margin-bottom: 20px; font-weight: 700;">Rata-rata Durasi Respon per Kategori Layanan</h3>
-          <div class="table-container">
+        <div class="card-wrapper" style="padding-bottom: 20px;">
+          <h3 style="color: var(--primary); margin-bottom: 12px; font-weight: 700;">Rata-rata Durasi Respon per Kategori Layanan</h3>
+          <div class="table-container" style="margin-bottom: 16px;">
             <table>
               <thead>
                 <tr>
