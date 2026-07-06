@@ -75,13 +75,14 @@ function initDatabase() {
     
     // Isi data user dummy awal
     var dummyUsers = [
-      ["supervisor@mail.ugm.ac.id", "dtslugm123", "Supervisor DTSL", "Supervisor", ""],
-      ["sarpras@mail.ugm.ac.id", "sarpras123", "Staf Sarpras", "Staff", "Layanan Sarana Prasarana"],
-      ["keuangan@mail.ugm.ac.id", "keuangan123", "Staf Keuangan", "Staff", "Layanan Keuangan"],
-      ["penelitian@mail.ugm.ac.id", "penelitian123", "Staf Penelitian", "Staff", "Layanan Penelitian dan PKM"],
-      ["lab@mail.ugm.ac.id", "lab123", "Staf Lab", "Staff", "Layanan Laboratorium"],
-      ["it@mail.ugm.ac.id", "it123", "Staf IT", "Staff", "Layanan IT"],
-      ["lainnya@mail.ugm.ac.id", "lainnya123", "Staf Lainnya", "Staff", "Layanan lainnya"]
+      ["pathub+supervisor@gmail.com", "dtslugm123", "Supervisor DTSL", "Supervisor", ""],
+      ["pathub+sarpras@gmail.com", "sarpras123", "Staf Sarpras", "Staff", "Layanan Sarana Prasarana"],
+      ["pathub+keuangan@gmail.com", "keuangan123", "Staf Keuangan", "Staff", "Layanan Keuangan"],
+      ["pathub+penelitian@gmail.com", "penelitian123", "Staf Penelitian", "Staff", "Layanan Penelitian dan PKM"],
+      ["pathub+lab@gmail.com", "lab123", "Staf Lab", "Staff", "Layanan Laboratorium"],
+      ["pathub+it@gmail.com", "it123", "Staf IT", "Staff", "Layanan IT"],
+      ["pathub+akademik@gmail.com", "akademik123", "Staf Akademik", "Staff", "Layanan Akademik"],
+      ["pathub+lainnya@gmail.com", "lainnya123", "Staf Lainnya", "Staff", "Layanan lainnya"]
     ];
     sheetUsers.getRange(2, 1, dummyUsers.length, headersUsers.length).setValues(dummyUsers);
   }

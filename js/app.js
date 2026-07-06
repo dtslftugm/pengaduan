@@ -928,6 +928,7 @@ async function fetchSupervisorStats() {
         "Layanan Penelitian dan PKM",
         "Layanan Laboratorium",
         "Layanan IT",
+        "Layanan Akademik",
         "Layanan lainnya"
       ];
 

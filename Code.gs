@@ -261,7 +261,7 @@ function submitPengaduanAction(params) {
 
 // Fungsi untuk mengirim email notifikasi
 function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim, token) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://username.github.io/aduan-dtsl"; // Rujukan URL Frontend
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan"; // Rujukan URL Frontend
   
   var trackingLink = webAppUrl + "/track.html?id=" + id + "&token=" + token;
   var adminLink = webAppUrl + "/admin.html?id=" + id + "&token=" + token;
@@ -479,7 +479,7 @@ function updateStatusAction(params) {
 
 // Fungsi mengirim email status update ke pengirim
 function sendStatusUpdateEmail(id, namaPengirim, emailPengirim, status, catatan, fileBuktiUrl, token) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://username.github.io/aduan-dtsl";
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan/aduan-dtsl";
   var trackingLink = webAppUrl + "/track.html?id=" + id + "&token=" + token;
   
   var subject = "[DTSL FT UGM] Perkembangan Pengaduan - " + id + " (" + status + ")";
@@ -588,7 +588,7 @@ function submitBantahanAction(params) {
 
 // Fungsi mengirim notifikasi adanya Bantahan ke Staf & Supervisor
 function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantahan, fileBantahanUrl) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://username.github.io/aduan-dtsl";
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan/aduan-dtsl";
   var adminLink = webAppUrl + "/admin.html?id=" + id; // Dashboard link
   
   var subject = "[URGENT - BANTAHAN PELAPOR] Pengaduan " + id + " Dibantah";
