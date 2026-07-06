@@ -417,6 +417,8 @@ async function fetchComplaintStatus(id, token) {
       // Sembunyikan pencarian, tampilkan detail
       document.getElementById("searchCard").style.display = "none";
       document.getElementById("trackingDetailContainer").style.display = "block";
+      const trackHero = document.getElementById("trackHero");
+      if (trackHero) trackHero.style.display = "none";
 
       // Update data teks
       document.getElementById("detComplaintId").textContent = data.id;
@@ -521,14 +523,14 @@ function updateStepper(data) {
   const stepDiproses = document.getElementById("stepDiproses");
   const stepSelesai = document.getElementById("stepSelesai");
   const nodeFinal = document.getElementById("nodeFinal");
-  const labelFinal = document.getElementById("labelFinal");
+  const textFinal = document.getElementById("textFinal");
 
   // Reset classes
   stepPending.className = "step-item";
   stepDiproses.className = "step-item";
   stepSelesai.className = "step-item";
   nodeFinal.textContent = "3";
-  labelFinal.innerHTML = "Selesai/Ditolak";
+  textFinal.textContent = "Selesai/Ditolak";
 
   // Reset dates
   document.getElementById("timePending").textContent = formatDate(data.createdAt);
@@ -567,10 +569,10 @@ function updateStepper(data) {
       stepSelesai.classList.remove("completed");
       stepSelesai.classList.add("rejected");
       nodeFinal.textContent = "✗";
-      labelFinal.innerHTML = "Ditolak<br><span style='font-size: 11px; font-weight: normal; color: #64748b;'>" + formatDate(data.updatedAt) + "</span>";
+      textFinal.textContent = "Ditolak";
     } else {
       nodeFinal.textContent = "✓";
-      labelFinal.innerHTML = "Selesai<br><span style='font-size: 11px; font-weight: normal; color: #64748b;'>" + formatDate(data.updatedAt) + "</span>";
+      textFinal.textContent = "Selesai";
     }
   }
 }
