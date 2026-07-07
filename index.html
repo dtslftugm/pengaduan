@@ -36,12 +36,18 @@
     <div class="card-wrapper">
 
       <!-- Info Banner -->
-      <div class="disclaimer-banner" style="background-color: rgba(0, 168, 150, 0.05); border-left-color: var(--secondary); margin-bottom: 20px;">
+      <div class="disclaimer-banner"
+        style="background-color: rgba(0, 168, 150, 0.05); border-left-color: var(--secondary); margin-bottom: 20px;">
         <span class="disclaimer-title" style="color: var(--secondary);">Tujuan Formulir & SOP Layanan</span>
         <p class="disclaimer-text">
-          Formulir ini digunakan untuk memfasilitasi saran/aduan terkait layanan dan fasilitas di Departemen Teknik Sipil dan Lingkungan (DTSL). Informasi data diri Anda akan dijamin kerahasiaannya.<br><br>
-          <a href="https://drive.google.com/file/d/1GvPIKMslQJoIGnS2Mx0oIVfiHyBLRGKN/view?usp=sharing" target="_blank" style="display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); text-decoration: none; font-weight: 600; padding: 6px 12px; background-color: rgba(0, 168, 150, 0.1); border-radius: 4px;">
-            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/></svg> 
+          Formulir ini digunakan untuk memfasilitasi saran/aduan terkait layanan dan fasilitas di Departemen Teknik
+          Sipil dan Lingkungan (DTSL). Informasi data diri Anda akan dijamin kerahasiaannya.<br><br>
+          <a href="https://drive.google.com/file/d/1GvPIKMslQJoIGnS2Mx0oIVfiHyBLRGKN/view?usp=sharing" target="_blank"
+            style="display: inline-flex; align-items: center; gap: 6px; color: var(--secondary); text-decoration: none; font-weight: 600; padding: 6px 12px; background-color: rgba(0, 168, 150, 0.1); border-radius: 4px;">
+            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+              <path
+                d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z" />
+            </svg>
             Lihat SOP Aduan Layanan/Fasilitas
           </a>
         </p>
@@ -52,7 +58,8 @@
         <span class="disclaimer-title">Pemberitahuan Privasi Data Anonim</span>
         <p class="disclaimer-text">
           Sistem ini mencatat nama, email, dan kontak Anda agar staf kami dapat memberikan progres tindak lanjut.
-          Jika Anda memerlukan pelaporan yang <strong>sepenuhnya rahasia (anonim penuh)</strong> tanpa staf dapat mengetahui identitas Anda, silakan gunakan
+          Jika Anda memerlukan pelaporan yang <strong>sepenuhnya rahasia (anonim penuh)</strong> tanpa staf dapat
+          mengetahui identitas Anda, silakan gunakan
           platform <a href="https://ugm.id/sempritan" class="disclaimer-link" target="_blank">ugm.id/sempritan</a>.
         </p>
       </div>
@@ -70,11 +77,16 @@
           <div class="form-group">
             <label for="status">Status Pengirim *</label>
             <select id="status" name="status" required>
-              <option value="" disabled selected>Pilih status akademik Anda</option>
-              <option value="Mahasiswa S1">Mahasiswa S1</option>
-              <option value="Mahasiswa S2">Mahasiswa S2</option>
-              <option value="Mahasiswa S3">Mahasiswa S3</option>
-              <option value="Postdoctor">Postdoctor</option>
+              <option value="" disabled selected>Pilih status</option>
+              <option value="Dosen">Dosen</option>
+              <option value="Tenaga Kependidikan">Tenaga Kependidikan</option>
+              <option value="S1 TS">S1 TS</option>
+              <option value="S1 TIL">S1 TIL</option>
+              <option value="S1 TSDA">S1 TSDA</option>
+              <option value="MTS">MTS</option>
+              <option value="MSTT">MSTT</option>
+              <option value="MTPBA">MTPBA</option>
+              <option value="Doctor">Doctor</option>
               <option value="Lainnya">Lainnya</option>
             </select>
           </div>
@@ -98,13 +110,14 @@
               <option value="" disabled selected>Pilih kategori layanan</option>
               <option value="Layanan Sarana Prasarana">Layanan Sarana Prasarana (Kerusakan fasilitas, gedung, dll)
               </option>
-              <option value="Layanan Keuangan">Layanan Keuangan (Uang Kuliah Tunggal, beasiswa, dll)</option>
+              <option value="Layanan Keuangan">Layanan Keuangan (Uang Kuliah Tunggal, Honorarium, dll)</option>
               <option value="Layanan Penelitian dan PKM">Layanan Penelitian dan PKM (Administrasi tugas akhir,
                 pengabdian, dll)</option>
               <option value="Layanan Laboratorium">Layanan Laboratorium (Peralatan lab, bahan lab, perizinan, dll)
               </option>
               <option value="Layanan IT">Layanan IT (Akses wifi, website, akun email, dll)</option>
-              <option value="Layanan Akademik">Layanan Akademik (Jadwal kuliah, KRS, ujian, administrasi akademik, dll)</option>
+              <option value="Layanan Akademik">Layanan Akademik (Jadwal kuliah, KRS, ujian, administrasi akademik, dll)
+              </option>
               <option value="Layanan lainnya">Layanan Lainnya</option>
             </select>
           </div>
