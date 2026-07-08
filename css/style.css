@@ -383,7 +383,9 @@ textarea:focus {
   backdrop-filter: blur(4px);
   z-index: 1000;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start; /* Allows scrolling from top if content is tall */
+  overflow-y: auto;
+  padding: 40px 20px;
 }
 
 .success-card {
@@ -391,10 +393,11 @@ textarea:focus {
   border-radius: var(--border-radius-lg);
   padding: 40px;
   max-width: 500px;
-  width: 90%;
+  width: 100%; /* Better responsiveness */
   text-align: center;
   box-shadow: 0 20px 50px rgba(0,0,0,0.15);
   animation: scaleUp 0.3s ease-out;
+  margin: auto; /* Centers vertically if shorter than viewport */
 }
 
 .success-icon {
