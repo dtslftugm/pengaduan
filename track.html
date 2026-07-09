@@ -28,7 +28,7 @@
   </header>
 
   <!-- Hero Section -->
-  <section class="hero">
+  <section class="hero" id="trackHero">
     <div class="container">
       <h1>Lacak Status Laporan</h1>
       <p>Masukkan ID Pengaduan dan Token Anda untuk memantau status tindak lanjut laporan.</p>
@@ -56,11 +56,17 @@
     <!-- Status Detail Container (Initially Hidden) -->
     <div id="trackingDetailContainer" style="display: none;">
       
+      <!-- Compact Page Header inside details -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 style="color: var(--primary); font-weight: 700; font-size: 1.5rem;">Status Pelacakan Laporan</h2>
+        <button type="button" class="btn btn-secondary" onclick="location.reload()" style="padding: 6px 12px; font-size: 0.85rem;">Cari Laporan Lain</button>
+      </div>
+
       <!-- Stepper / Progress Status -->
-      <div class="card-wrapper">
-        <h3 style="color: var(--primary); margin-bottom: 20px; font-weight: 700;">Progress Penanganan</h3>
+      <div class="card-wrapper" style="padding: 24px; margin-bottom: 20px;">
+        <h3 style="color: var(--primary); margin-bottom: 16px; font-weight: 700; font-size: 1.1rem;">Progress Penanganan</h3>
         
-        <div class="stepper-container">
+        <div class="stepper-container" style="margin: 20px 0 10px;">
           <div class="step-progress-line" id="stepProgressLine"></div>
           
           <div class="step-item" id="stepPending">
@@ -75,7 +81,7 @@
           
           <div class="step-item" id="stepSelesai">
             <div class="step-node" id="nodeFinal">3</div>
-            <div class="step-label" id="labelFinal">Selesai/Ditolak<br><span style="font-size: 11px; font-weight: normal; color: #64748b;" id="timeFinal">-</span></div>
+            <div class="step-label"><span id="textFinal">Selesai/Ditolak</span><br><span style="font-size: 11px; font-weight: normal; color: #64748b;" id="timeFinal">-</span></div>
           </div>
         </div>
 

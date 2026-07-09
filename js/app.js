@@ -19,7 +19,7 @@ function formatWhatsAppLink(phoneNumber) {
   if (!phoneNumber) return "";
   let trimmed = phoneNumber.trim();
   if (trimmed === "") return "";
-  
+
   // Jika sudah berupa tautan wa.me atau whatsapp.com, kembalikan apa adanya (atau paksa protokol https)
   if (trimmed.includes("wa.me/") || trimmed.includes("whatsapp.com/")) {
     if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
@@ -27,13 +27,13 @@ function formatWhatsAppLink(phoneNumber) {
     }
     return trimmed;
   }
-  
+
   // Bersihkan semua karakter selain angka
   let cleaned = trimmed.replace(/\D/g, "");
   if (cleaned.startsWith("0")) {
     cleaned = "62" + cleaned.slice(1);
   }
-  
+
   if (cleaned.length > 0) {
     return "https://wa.me/" + cleaned;
   }
@@ -228,6 +228,27 @@ function initIndexPage() {
   const form = document.getElementById("formAduan");
   const btnSubmit = document.getElementById("btnSubmit");
 
+  // Dynamic Location Logic
+  const kategoriSelect = document.getElementById("kategori");
+  const locationContainer = document.getElementById("locationContainer");
+  const lokasiInput = document.getElementById("lokasiLaporan");
+  const subLokasiInput = document.getElementById("subLokasi");
+
+  if (kategoriSelect && locationContainer) {
+    kategoriSelect.addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val === "Layanan Sarana Prasarana" || val === "Layanan Laboratorium" || val === "Layanan IT") {
+        locationContainer.style.display = "block";
+        lokasiInput.required = true;
+      } else {
+        locationContainer.style.display = "none";
+        lokasiInput.required = false;
+        lokasiInput.value = "";
+        subLokasiInput.value = "";
+      }
+    });
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
@@ -239,6 +260,8 @@ function initIndexPage() {
       email: document.getElementById("email").value,
       noHp: formatWhatsAppLink(document.getElementById("noHp").value),
       kategori: document.getElementById("kategori").value,
+      lokasiLaporan: document.getElementById("lokasiLaporan") ? document.getElementById("lokasiLaporan").value : "",
+      subLokasi: document.getElementById("subLokasi") ? document.getElementById("subLokasi").value : "",
       isi: document.getElementById("isi").value
     };
 
@@ -256,7 +279,7 @@ function initIndexPage() {
     btnSubmit.disabled = true;
     const btnText = btnSubmit.querySelector("span");
     const originalText = btnText.textContent;
-    btnText.textContent = "Mengirim Keluhan...";
+    btnText.textContent = "Mengirim Pengaduan...";
 
     try {
       const response = await fetch(API_URL, {
@@ -385,7 +408,7 @@ function initTrackPage() {
         });
         const resData = await response.json();
         if (resData.success) {
-          alert("Sanggahan berhasil terkirim. Status laporan telah berubah kembali menjadi Bantahan.");
+          alert("Sanggahan berhasil terkirim. Status laporan telah berubah menjadi Bantahan.");
           location.reload(); // Reload untuk memperbarui progress view
         } else {
           alert("Gagal mengirim sanggahan: " + resData.message);
@@ -426,7 +449,7 @@ async function fetchComplaintStatus(id, token) {
       document.getElementById("detKategori").textContent = data.kategori;
       document.getElementById("detPengirim").textContent = data.nama + ` (${data.statusPengirim})`;
       document.getElementById("detEmail").textContent = data.email;
-      
+
       const noHpRow = document.getElementById("detNoHpRow");
       if (data.noHp) {
         const noHpLink = document.getElementById("detNoHpLink");
@@ -640,7 +663,7 @@ async function fetchQuickReport(id, token) {
       document.getElementById("quickId").textContent = data.id;
       document.getElementById("quickPengirim").textContent = data.nama;
       document.getElementById("quickStatusPengirim").textContent = data.statusPengirim;
-      
+
       const quickNoHpRow = document.getElementById("quickNoHpRow");
       if (data.noHp) {
         const quickNoHpLink = document.getElementById("quickNoHpLink");
@@ -982,7 +1005,7 @@ function openReviewModal(id) {
   document.getElementById("revId").textContent = selectedReport.id;
   document.getElementById("revPengirim").textContent = selectedReport.nama;
   document.getElementById("revStatusPengirim").textContent = selectedReport.statusPengirim;
-  
+
   const revNoHpRow = document.getElementById("revNoHpRow");
   if (selectedReport.noHp) {
     const revNoHpLink = document.getElementById("revNoHpLink");

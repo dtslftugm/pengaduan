@@ -3,14 +3,44 @@
  * Bagian 1: LockService, Helper, dan doPost (Submission & Upload)
  */
 
-// Konfigurasi Spreadsheet ID (Wajib jika script unbound / tidak melekat langsung pada Spreadsheet)
-var SPREADSHEET_ID = "10S7RpwfsuA-Jf9ddy-GSEMoUGBYzhbQjxbIV7FvfxoY";
-
 function getSpreadsheet() {
-  if (SPREADSHEET_ID && SPREADSHEET_ID !== "") {
-    return SpreadsheetApp.openById(SPREADSHEET_ID);
+  // Mengambil ID dari Script Properties (Wajib diatur di Project Settings atau via setSpreadsheetIdProperty)
+  var id = PropertiesService.getScriptProperties().getProperty("SPREADSHEET_ID");
+  if (id && id !== "") {
+    try {
+      return SpreadsheetApp.openById(id);
+    } catch (e) {
+      throw new Error("Gagal membuka Spreadsheet. Periksa apakah SPREADSHEET_ID valid dan akun memiliki akses.");
+    }
   }
-  return SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Fallback jika script bound ke spreadsheet
+  var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+  if (activeSs) {
+    return activeSs;
+  }
+  
+  throw new Error("SPREADSHEET_ID tidak ditemukan di Script Properties dan script tidak melekat (unbound) pada Spreadsheet.");
+}
+
+// Fungsi pembantu untuk menetapkan Script Property secara otomatis
+function setSpreadsheetIdProperty(id) {
+  if (!id || id.trim() === "") {
+    throw new Error("ID Spreadsheet tidak boleh kosong. Jalankan dengan: setSpreadsheetIdProperty('ID_SPREADSHEET_ANDA')");
+  }
+  PropertiesService.getScriptProperties().setProperty("SPREADSHEET_ID", id.trim());
+  return "SPREADSHEET_ID berhasil disimpan di Script Properties: " + id.trim();
+}
+
+// Helper: Mencari index kolom berdasarkan nama header (dengan sanitasi trim dan lowercase)
+function findCol(headers, name) {
+  var target = name.toString().toLowerCase().trim();
+  for (var i = 0; i < headers.length; i++) {
+    if (headers[i] && headers[i].toString().toLowerCase().trim() === target) {
+      return i;
+    }
+  }
+  return -1;
 }
 
 // Helper untuk mengambil nilai konfigurasi dari sheet Config
@@ -20,9 +50,16 @@ function getConfigValue(key) {
   if (!sheet) return null;
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return null;
+  
+  var headers = data[0];
+  var keyIdx = findCol(headers, "Key");
+  var valIdx = findCol(headers, "Value");
+  if (keyIdx === -1 || valIdx === -1) return null;
+  
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === key) {
-      return data[i][1];
+    if (data[i][keyIdx] === key) {
+      return data[i][valIdx];
     }
   }
   return null;
@@ -44,11 +81,18 @@ function generateComplaintId() {
   var count = 1;
   
   var data = sheet.getDataRange().getValues();
-  // Hitung berapa aduan yang sudah dibuat hari ini
-  for (var i = 1; i < data.length; i++) {
-    var id = data[i][0];
-    if (id && id.toString().indexOf(prefix) === 0) {
-      count++;
+  if (data.length > 0) {
+    var headers = data[0];
+    var idIdx = findCol(headers, "ID_Pengaduan");
+    
+    if (idIdx !== -1) {
+      // Hitung berapa aduan yang sudah dibuat hari ini
+      for (var i = 1; i < data.length; i++) {
+        var id = data[i][idIdx];
+        if (id && id.toString().indexOf(prefix) === 0) {
+          count++;
+        }
+      }
     }
   }
   
@@ -108,11 +152,19 @@ function getStaffEmails(kategori) {
   if (!sheet) return [];
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  
+  var headers = data[0];
+  var emailIdx = findCol(headers, "Email");
+  var roleIdx = findCol(headers, "Role");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  if (emailIdx === -1 || roleIdx === -1 || katIdx === -1) return [];
+  
   var emails = [];
   for (var i = 1; i < data.length; i++) {
-    var email = data[i][0];
-    var role = data[i][3];
-    var katStaf = data[i][4];
+    var email = data[i][emailIdx];
+    var role = data[i][roleIdx];
+    var katStaf = data[i][katIdx];
     
     if (role === "Staff" && katStaf === kategori) {
       emails.push(email);
@@ -128,10 +180,17 @@ function getSupervisorEmails() {
   if (!sheet) return [];
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return [];
+  
+  var headers = data[0];
+  var emailIdx = findCol(headers, "Email");
+  var roleIdx = findCol(headers, "Role");
+  if (emailIdx === -1 || roleIdx === -1) return [];
+  
   var emails = [];
   for (var i = 1; i < data.length; i++) {
-    var email = data[i][0];
-    var role = data[i][3];
+    var email = data[i][emailIdx];
+    var role = data[i][roleIdx];
     
     if (role === "Supervisor") {
       emails.push(email);
@@ -220,29 +279,34 @@ function submitPengaduanAction(params) {
     fileUrl = params.fileLinkUrl;
   }
   
-  // Format baris baru
-  // ID_Pengaduan (1), Timestamp (2), Nama_Pengirim (3), Status_Pengirim (4), Email_Pengirim (5), No_HP_Pengirim (6), 
-  // Kategori_Layanan (7), Isi_Laporan (8), File_Lampiran_URL (9), Status_Progress (10), Catatan_Staf (11), 
-  // File_Bukti_Staf_URL (12), Catatan_Bantahan (13), File_Bantahan_URL (14), Token (15), Created_At (16), Updated_At (17)
-  var newRow = [
-    id,
-    timestamp,
-    params.nama,
-    params.status,
-    params.email,
-    params.noHp || "",
-    params.kategori,
-    params.isi,
-    fileUrl,
-    "Pending", // Status awal
-    "", // Catatan staf
-    "", // File bukti staf
-    "", // Catatan bantahan
-    "", // File bantahan
-    token,
-    timestamp,
-    timestamp
-  ];
+  // Format baris baru (dinamis berdasarkan header)
+  var headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+  var newRow = new Array(headers.length);
+  for (var i = 0; i < newRow.length; i++) {
+    newRow[i] = ""; // inisialisasi default
+  }
+  
+  var setVal = function(colName, val) {
+    var idx = findCol(headers, colName);
+    if (idx !== -1) newRow[idx] = val;
+  };
+  
+  setVal("ID_Pengaduan", id);
+  setVal("Timestamp", timestamp);
+  setVal("Nama_Pengirim", params.nama);
+  setVal("Status_Pengirim", params.status);
+  setVal("Email_Pengirim", params.email);
+  setVal("No_HP_Pengirim", params.noHp || "");
+  setVal("Kategori_Layanan", params.kategori);
+  setVal("Isi_Laporan", params.isi);
+  setVal("File_Lampiran_URL", fileUrl);
+  setVal("Status_Progress", "Pending"); // Status awal
+  setVal("Token", token);
+  setVal("Updated_At", timestamp);
+  
+  // Kolom baru (Fase 1 V2.0)
+  setVal("Lokasi_Laporan", params.lokasiLaporan || "");
+  setVal("Sub_Lokasi", params.subLokasi || "");
   
   sheet.appendRow(newRow);
   
@@ -261,7 +325,7 @@ function submitPengaduanAction(params) {
 
 // Fungsi untuk mengirim email notifikasi
 function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim, token) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan"; // Rujukan URL Frontend
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL"); // Rujukan URL Frontend
   
   var trackingLink = webAppUrl + "/track.html?id=" + id + "&token=" + token;
   var adminLink = webAppUrl + "/admin.html?id=" + id + "&token=" + token;
@@ -285,7 +349,9 @@ function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim
     MailApp.sendEmail({
       to: emailSenderFilter(emailPengirim),
       subject: subjectSender,
-      htmlBody: htmlSender
+      htmlBody: htmlSender,
+      name: "Layanan Aduan DTSL FT UGM",
+      replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
     });
   } catch (err) {
     Logger.log("Gagal mengirim email ke pengirim: " + err.toString());
@@ -310,7 +376,9 @@ function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim
       MailApp.sendEmail({
         to: staffEmails.join(","),
         subject: subjectStaff,
-        htmlBody: htmlStaff
+        htmlBody: htmlStaff,
+        name: "Layanan Aduan DTSL FT UGM",
+        replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
       });
     } catch (err) {
       Logger.log("Gagal mengirim email ke staf: " + err.toString());
@@ -331,7 +399,7 @@ function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim
         "<li><b>Pengirim:</b> " + namaPengirim + "</li>" +
         "<li><b>Detail Laporan:</b> " + isiLaporan + "</li>" +
         "</ul>" +
-        "<p>Laporan ini saat ini ditugaskan kepada staf pada bagian <b>" + kategori + "</b>.</p>" +
+        "<p>Laporan ini sudah ditugaskan kepada staf bagian <b>" + kategori + "</b>.</p>" +
         "<p>Anda dapat memantau seluruh aktivitas sistem melalui Dashboard Utama Anda.</p><br>" +
         "<p>Salam,<br><b>Sistem Pengaduan DTSL FT UGM</b></p>";
         
@@ -339,7 +407,9 @@ function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim
         MailApp.sendEmail({
           to: supervisorEmails.join(","),
           subject: subjectSuper,
-          htmlBody: htmlSuper
+          htmlBody: htmlSuper,
+          name: "Layanan Pengaduan DTSL FT UGM",
+          replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
         });
       } catch (err) {
         Logger.log("Gagal mengirim email ke supervisor: " + err.toString());
@@ -350,7 +420,7 @@ function sendNotifications(id, namaPengirim, kategori, isiLaporan, emailPengirim
 
 // Helper untuk filter email (mencegah error kirim ke alamat kosong/tidak valid)
 function emailSenderFilter(email) {
-  if (!email || email.indexOf("@") === -1) return "aduan.dtsl.ugm@gmail.com"; // Fallback email
+  if (!email || email.indexOf("@") === -1) return "pathub+aduan@gmail.com"; // Fallback email
   return email;
 }
 
@@ -361,12 +431,24 @@ function authenticateUser(email, password, kategoriRequired) {
   if (!sheet) return { authorized: false, role: "" };
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { authorized: false, role: "" };
+  
+  var headers = data[0];
+  var emailIdx = findCol(headers, "Email");
+  var passIdx = findCol(headers, "Password");
+  var namaIdx = findCol(headers, "Nama");
+  var roleIdx = findCol(headers, "Role");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  if (emailIdx === -1 || passIdx === -1 || namaIdx === -1 || roleIdx === -1 || katIdx === -1) {
+    return { authorized: false, role: "" };
+  }
+  
   for (var i = 1; i < data.length; i++) {
-    var uEmail = data[i][0];
-    var uPass = data[i][1];
-    var uNama = data[i][2];
-    var uRole = data[i][3];
-    var uKategori = data[i][4];
+    var uEmail = data[i][emailIdx];
+    var uPass = data[i][passIdx];
+    var uNama = data[i][namaIdx];
+    var uRole = data[i][roleIdx];
+    var uKategori = data[i][katIdx];
     
     if (uEmail && uPass && uEmail.toString().toLowerCase() === email.toString().toLowerCase() && uPass.toString() === password.toString()) {
       if (uRole === "Supervisor") {
@@ -404,10 +486,27 @@ function updateStatusAction(params) {
   
   // Cari baris data pengaduan
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: false, message: "Data pengaduan kosong." };
+  
+  var headers = data[0];
+  var idIdx = findCol(headers, "ID_Pengaduan");
+  var tokenIdx = findCol(headers, "Token");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  var emailIdx = findCol(headers, "Email_Pengirim");
+  var namaIdx = findCol(headers, "Nama_Pengirim");
+  var statusProgressIdx = findCol(headers, "Status_Progress");
+  var catatanStafIdx = findCol(headers, "Catatan_Staf");
+  var fileBuktiStafUrlIdx = findCol(headers, "File_Bukti_Staf_URL");
+  var updatedAtIdx = findCol(headers, "Updated_At");
+  
+  if (idIdx === -1 || tokenIdx === -1 || katIdx === -1 || emailIdx === -1 || namaIdx === -1 || statusProgressIdx === -1 || catatanStafIdx === -1 || fileBuktiStafUrlIdx === -1 || updatedAtIdx === -1) {
+    return { success: false, message: "Struktur kolom pengaduan tidak valid." };
+  }
+  
   var rowIndex = -1;
   var rowData = null;
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === id) {
+    if (data[i][idIdx] === id) {
       rowIndex = i + 1;
       rowData = data[i];
       break;
@@ -418,10 +517,10 @@ function updateStatusAction(params) {
     return { success: false, message: "Data pengaduan tidak ditemukan." };
   }
   
-  var dbToken = rowData[14];
-  var dbKategori = rowData[6];
-  var emailPengirim = rowData[4];
-  var namaPengirim = rowData[2];
+  var dbToken = rowData[tokenIdx];
+  var dbKategori = rowData[katIdx];
+  var emailPengirim = rowData[emailIdx];
+  var namaPengirim = rowData[namaIdx];
   
   // Otorisasi: Cek secure token link OR email & password login
   var isAuthorized = false;
@@ -454,15 +553,11 @@ function updateStatusAction(params) {
   
   var now = new Date();
   
-  // Update data baris spreadsheet
-  // Status_Progress = col 10 (index 9)
-  // Catatan_Staf = col 11 (index 10)
-  // File_Bukti_Staf_URL = col 12 (index 11)
-  // Updated_At = col 17 (index 16)
-  sheet.getRange(rowIndex, 10).setValue(newStatus);
-  sheet.getRange(rowIndex, 11).setValue(catatanStaf);
-  sheet.getRange(rowIndex, 12).setValue(fileBuktiUrl);
-  sheet.getRange(rowIndex, 17).setValue(now);
+  // Update data baris spreadsheet menggunakan indeks berbasis-1
+  sheet.getRange(rowIndex, statusProgressIdx + 1).setValue(newStatus);
+  sheet.getRange(rowIndex, catatanStafIdx + 1).setValue(catatanStaf);
+  sheet.getRange(rowIndex, fileBuktiStafUrlIdx + 1).setValue(fileBuktiUrl);
+  sheet.getRange(rowIndex, updatedAtIdx + 1).setValue(now);
   
   // Kirim email notifikasi ke Pengirim tentang update status
   sendStatusUpdateEmail(id, namaPengirim, emailPengirim, newStatus, catatanStaf, fileBuktiUrl, dbToken);
@@ -479,7 +574,7 @@ function updateStatusAction(params) {
 
 // Fungsi mengirim email status update ke pengirim
 function sendStatusUpdateEmail(id, namaPengirim, emailPengirim, status, catatan, fileBuktiUrl, token) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan/aduan-dtsl";
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL");
   var trackingLink = webAppUrl + "/track.html?id=" + id + "&token=" + token;
   
   var subject = "[DTSL FT UGM] Perkembangan Pengaduan - " + id + " (" + status + ")";
@@ -507,14 +602,16 @@ function sendStatusUpdateEmail(id, namaPengirim, emailPengirim, status, catatan,
     MailApp.sendEmail({
       to: emailSenderFilter(emailPengirim),
       subject: subject,
-      htmlBody: htmlBody
+      htmlBody: htmlBody,
+      name: "Layanan Pengaduan DTSL FT UGM",
+      replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
     });
   } catch (err) {
     Logger.log("Gagal mengirim email update status ke pengirim: " + err.toString());
   }
 }
 
-// Aksi mengajukan bantahan (rebuttal) oleh Pengirim/Pelapor
+// Aksi mengajukan bantahan oleh Pengirim/Pelapor
 function submitBantahanAction(params) {
   var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("Pengaduan");
@@ -532,10 +629,26 @@ function submitBantahanAction(params) {
   
   // Cari baris data pengaduan
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: false, message: "Data pengaduan kosong." };
+  
+  var headers = data[0];
+  var idIdx = findCol(headers, "ID_Pengaduan");
+  var tokenIdx = findCol(headers, "Token");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  var namaIdx = findCol(headers, "Nama_Pengirim");
+  var statusProgressIdx = findCol(headers, "Status_Progress");
+  var catatanBantahanIdx = findCol(headers, "Catatan_Bantahan");
+  var fileBantahanUrlIdx = findCol(headers, "File_Bantahan_URL");
+  var updatedAtIdx = findCol(headers, "Updated_At");
+  
+  if (idIdx === -1 || tokenIdx === -1 || katIdx === -1 || namaIdx === -1 || statusProgressIdx === -1 || catatanBantahanIdx === -1 || fileBantahanUrlIdx === -1 || updatedAtIdx === -1) {
+    return { success: false, message: "Struktur kolom pengaduan tidak valid." };
+  }
+  
   var rowIndex = -1;
   var rowData = null;
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === id) {
+    if (data[i][idIdx] === id) {
       rowIndex = i + 1;
       rowData = data[i];
       break;
@@ -546,9 +659,9 @@ function submitBantahanAction(params) {
     return { success: false, message: "Data pengaduan tidak ditemukan." };
   }
   
-  var dbToken = rowData[14];
-  var dbKategori = rowData[6];
-  var namaPengirim = rowData[2];
+  var dbToken = rowData[tokenIdx];
+  var dbKategori = rowData[katIdx];
+  var namaPengirim = rowData[namaIdx];
   
   // Verifikasi token pengirim
   if (token !== dbToken) {
@@ -563,15 +676,11 @@ function submitBantahanAction(params) {
   
   var now = new Date();
   
-  // Update data baris spreadsheet
-  // Status_Progress = col 10 (index 9) -> Ubah jadi "Bantahan"
-  // Catatan_Bantahan = col 13 (index 12)
-  // File_Bantahan_URL = col 14 (index 13)
-  // Updated_At = col 17 (index 16)
-  sheet.getRange(rowIndex, 10).setValue("Bantahan");
-  sheet.getRange(rowIndex, 13).setValue(catatanBantahan);
-  sheet.getRange(rowIndex, 14).setValue(fileBantahanUrl);
-  sheet.getRange(rowIndex, 17).setValue(now);
+  // Update data baris spreadsheet menggunakan indeks berbasis-1
+  sheet.getRange(rowIndex, statusProgressIdx + 1).setValue("Bantahan");
+  sheet.getRange(rowIndex, catatanBantahanIdx + 1).setValue(catatanBantahan);
+  sheet.getRange(rowIndex, fileBantahanUrlIdx + 1).setValue(fileBantahanUrl);
+  sheet.getRange(rowIndex, updatedAtIdx + 1).setValue(now);
   
   // Kirim email peringatan darurat ke Staf dan Supervisor
   sendBantahanNotificationEmails(id, dbKategori, namaPengirim, catatanBantahan, fileBantahanUrl);
@@ -588,7 +697,7 @@ function submitBantahanAction(params) {
 
 // Fungsi mengirim notifikasi adanya Bantahan ke Staf & Supervisor
 function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantahan, fileBantahanUrl) {
-  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL") || "https://dtslftugm.github.io/aduan/aduan-dtsl";
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL");
   var adminLink = webAppUrl + "/admin.html?id=" + id; // Dashboard link
   
   var subject = "[URGENT - BANTAHAN PELAPOR] Pengaduan " + id + " Dibantah";
@@ -602,7 +711,7 @@ function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantah
     htmlBody += "<p><b>Berkas Bukti Bantahan Pelapor:</b> <a href='" + fileBantahanUrl + "'>Buka Lampiran Bukti Bantahan</a></p>";
   }
   
-  htmlBody += "<p>Staf yang bertanggung jawab dan Supervisor wajib meninjau kembali laporan ini untuk mencegah adanya pemalsuan data/kinerja. Silakan akses dashboard untuk menanggapi:</p>" +
+  htmlBody += "<p>Staf yang bertanggung jawab dan Supervisor wajib meninjau kembali laporan ini untuk mencegah adanya pemalsuan data. Silakan akses dashboard untuk menanggapi:</p>" +
     "<p><a href='" + adminLink + "' style='background-color: #e76f51; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;'>Buka Portal Admin</a></p><br>" +
     "<p>Salam,<br><b>Sistem Pengaduan DTSL FT UGM</b></p>";
     
@@ -613,7 +722,9 @@ function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantah
       MailApp.sendEmail({
         to: staffEmails.join(","),
         subject: subject,
-        htmlBody: htmlBody
+        htmlBody: htmlBody,
+        name: "Layanan Pengaduan DTSL FT UGM",
+        replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
       });
     } catch (err) {
       Logger.log("Gagal kirim email bantahan ke staf: " + err.toString());
@@ -627,7 +738,9 @@ function sendBantahanNotificationEmails(id, kategori, namaPengirim, alasanBantah
       MailApp.sendEmail({
         to: supervisorEmails.join(","),
         subject: "[SUPERVISOR WARNING] " + subject,
-        htmlBody: htmlBody
+        htmlBody: htmlBody,
+        name: "Layanan Pengaduan DTSL FT UGM",
+        replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
       });
     } catch (err) {
       Logger.log("Gagal kirim email bantahan ke supervisor: " + err.toString());
@@ -673,33 +786,40 @@ function getStatusAction(params) {
   if (!id) return { success: false, message: "ID Laporan wajib diisi." };
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: false, message: "Data pengaduan kosong." };
+  
+  var headers = data[0];
+  var idIdx = findCol(headers, "ID_Pengaduan");
+  if (idIdx === -1) return { success: false, message: "Struktur kolom pengaduan tidak valid." };
+  
   for (var i = 1; i < data.length; i++) {
-    if (data[i][0] === id) {
+    if (data[i][idIdx] === id) {
       var row = data[i];
       // Jika token dikirimkan, verifikasi kecocokannya untuk data pelapor
-      if (token && row[14] !== token) {
+      var tokenIdx = findCol(headers, "Token");
+      if (token && (tokenIdx === -1 || row[tokenIdx] !== token)) {
         return { success: false, message: "Token pelacakan tidak valid." };
       }
       
       return {
         success: true,
         data: {
-          id: row[0],
-          timestamp: row[1],
-          nama: row[2],
-          statusPengirim: row[3],
-          email: row[4],
-          noHp: row[5],
-          kategori: row[6],
-          isi: row[7],
-          fileLampiranUrl: row[8],
-          statusProgress: row[9],
-          catatanStaf: row[10],
-          fileBuktiStafUrl: row[11],
-          catatanBantahan: row[12],
-          fileBantahanUrl: row[13],
-          createdAt: row[15],
-          updatedAt: row[16]
+          id: row[idIdx],
+          timestamp: row[findCol(headers, "Timestamp")],
+          nama: row[findCol(headers, "Nama_Pengirim")],
+          statusPengirim: row[findCol(headers, "Status_Pengirim")],
+          email: row[findCol(headers, "Email_Pengirim")],
+          noHp: row[findCol(headers, "No_HP_Pengirim")],
+          kategori: row[findCol(headers, "Kategori_Layanan")],
+          isi: row[findCol(headers, "Isi_Laporan")],
+          fileLampiranUrl: row[findCol(headers, "File_Lampiran_URL")],
+          statusProgress: row[findCol(headers, "Status_Progress")],
+          catatanStaf: row[findCol(headers, "Catatan_Staf")],
+          fileBuktiStafUrl: row[findCol(headers, "File_Bukti_Staf_URL")],
+          catatanBantahan: row[findCol(headers, "Catatan_Bantahan")],
+          fileBantahanUrl: row[findCol(headers, "File_Bantahan_URL")],
+          createdAt: row[findCol(headers, "Timestamp")],
+          updatedAt: row[findCol(headers, "Updated_At")]
         }
       };
     }
@@ -721,8 +841,15 @@ function verifyStaffAction(params) {
     if (!sheet) return { success: false, message: "Sheet tidak ditemukan." };
     
     var data = sheet.getDataRange().getValues();
+    if (data.length < 2) return { success: false, message: "Data pengaduan kosong." };
+    
+    var headers = data[0];
+    var idIdx = findCol(headers, "ID_Pengaduan");
+    var tokenIdx = findCol(headers, "Token");
+    if (idIdx === -1 || tokenIdx === -1) return { success: false, message: "Struktur kolom tidak valid." };
+    
     for (var i = 1; i < data.length; i++) {
-      if (data[i][0] === id && data[i][14] === token) {
+      if (data[i][idIdx] === id && data[i][tokenIdx] === token) {
         var row = data[i];
         return {
           success: true,
@@ -730,23 +857,23 @@ function verifyStaffAction(params) {
           user: {
             nama: "Staf Layanan",
             role: "Staff",
-            kategori: row[6]
+            kategori: row[findCol(headers, "Kategori_Layanan")]
           },
           data: {
-            id: row[0],
-            timestamp: row[1],
-            nama: row[2],
-            statusPengirim: row[3],
-            email: row[4],
-            noHp: row[5],
-            kategori: row[6],
-            isi: row[7],
-            fileLampiranUrl: row[8],
-            statusProgress: row[9],
-            catatanStaf: row[10],
-            fileBuktiStafUrl: row[11],
-            catatanBantahan: row[12],
-            fileBantahanUrl: row[13]
+            id: row[idIdx],
+            timestamp: row[findCol(headers, "Timestamp")],
+            nama: row[findCol(headers, "Nama_Pengirim")],
+            statusPengirim: row[findCol(headers, "Status_Pengirim")],
+            email: row[findCol(headers, "Email_Pengirim")],
+            noHp: row[findCol(headers, "No_HP_Pengirim")],
+            kategori: row[findCol(headers, "Kategori_Layanan")],
+            isi: row[findCol(headers, "Isi_Laporan")],
+            fileLampiranUrl: row[findCol(headers, "File_Lampiran_URL")],
+            statusProgress: row[findCol(headers, "Status_Progress")],
+            catatanStaf: row[findCol(headers, "Catatan_Staf")],
+            fileBuktiStafUrl: row[findCol(headers, "File_Bukti_Staf_URL")],
+            catatanBantahan: row[findCol(headers, "Catatan_Bantahan")],
+            fileBantahanUrl: row[findCol(headers, "File_Bantahan_URL")]
           }
         };
       }
@@ -791,32 +918,53 @@ function getAllReportsAction(params) {
   if (!sheet) return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, data: [] };
+  
+  var headers = data[0];
+  var idIdx = findCol(headers, "ID_Pengaduan");
+  var tsIdx = findCol(headers, "Timestamp");
+  var namaIdx = findCol(headers, "Nama_Pengirim");
+  var stPengirimIdx = findCol(headers, "Status_Pengirim");
+  var emailIdx = findCol(headers, "Email_Pengirim");
+  var hpIdx = findCol(headers, "No_HP_Pengirim");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  var isiIdx = findCol(headers, "Isi_Laporan");
+  var lampiranIdx = findCol(headers, "File_Lampiran_URL");
+  var stProgIdx = findCol(headers, "Status_Progress");
+  var catStafIdx = findCol(headers, "Catatan_Staf");
+  var bktStafIdx = findCol(headers, "File_Bukti_Staf_URL");
+  var catBantahIdx = findCol(headers, "Catatan_Bantahan");
+  var fileBantahIdx = findCol(headers, "File_Bantahan_URL");
+  var tokenIdx = findCol(headers, "Token");
+  var createdIdx = findCol(headers, "Timestamp");
+  var updatedIdx = findCol(headers, "Updated_At");
+  
   var list = [];
   
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
-    var kategoriAduan = row[6];
+    var kategoriAduan = row[katIdx];
     
     // Filter berdasarkan role: Staf hanya melihat kategori mereka, Supervisor melihat semua
     if (auth.role === "Supervisor" || (auth.role === "Staff" && auth.kategori === kategoriAduan)) {
       list.push({
-        id: row[0],
-        timestamp: row[1],
-        nama: row[2],
-        statusPengirim: row[3],
-        email: row[4],
-        noHp: row[5],
-        kategori: row[6],
-        isi: row[7],
-        fileLampiranUrl: row[8],
-        statusProgress: row[9],
-        catatanStaf: row[10],
-        fileBuktiStafUrl: row[11],
-        catatanBantahan: row[12],
-        fileBantahanUrl: row[13],
-        token: row[14], // Staf boleh melihat token untuk debugging/link
-        createdAt: row[15],
-        updatedAt: row[16]
+        id: row[idIdx],
+        timestamp: row[tsIdx],
+        nama: row[namaIdx],
+        statusPengirim: row[stPengirimIdx],
+        email: row[emailIdx],
+        noHp: row[hpIdx],
+        kategori: row[katIdx],
+        isi: row[isiIdx],
+        fileLampiranUrl: row[lampiranIdx],
+        statusProgress: row[stProgIdx],
+        catatanStaf: row[catStafIdx],
+        fileBuktiStafUrl: row[bktStafIdx],
+        catatanBantahan: row[catBantahIdx],
+        fileBantahanUrl: row[fileBantahIdx],
+        token: row[tokenIdx], // Staf boleh melihat token untuk debugging/link
+        createdAt: row[createdIdx],
+        updatedAt: row[updatedIdx]
       });
     }
   }
@@ -851,6 +999,16 @@ function getStatsAction(params) {
   if (!sheet) return { success: false, message: "Sheet Pengaduan tidak ditemukan." };
   
   var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, data: { totalReports: 0, statusStats: {}, categoryStats: {}, avgResolutionDaysGlobal: "0.0", avgResolutionDaysPerCategory: {}, negligentReports: [] } };
+  
+  var headers = data[0];
+  var idIdx = findCol(headers, "ID_Pengaduan");
+  var tsIdx = findCol(headers, "Timestamp");
+  var namaIdx = findCol(headers, "Nama_Pengirim");
+  var stProgIdx = findCol(headers, "Status_Progress");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  var updatedIdx = findCol(headers, "Updated_At");
+  
   var now = new Date();
   
   // Variabel akumulasi statistik
@@ -866,11 +1024,11 @@ function getStatsAction(params) {
   
   for (var i = 1; i < data.length; i++) {
     var row = data[i];
-    var id = row[0];
-    var ts = new Date(row[1]);
-    var status = row[9];
-    var kategori = row[6];
-    var updated = new Date(row[16]);
+    var id = row[idIdx];
+    var ts = new Date(row[tsIdx]);
+    var status = row[stProgIdx];
+    var kategori = row[katIdx];
+    var updated = new Date(row[updatedIdx]);
     
     if (!id) continue;
     
@@ -894,9 +1052,9 @@ function getStatsAction(params) {
     if (status === "Pending" && (now - ts) > 259200000) {
       kelalaianStaf.push({
         id: id,
-        nama: row[2],
+        nama: row[namaIdx],
         kategori: kategori,
-        timestamp: row[1],
+        timestamp: row[tsIdx],
         durasiHari: Math.floor((now - ts) / (1000 * 60 * 60 * 24))
       });
     }

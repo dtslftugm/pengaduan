@@ -86,7 +86,7 @@
               <option value="MTS">MTS</option>
               <option value="MSTT">MSTT</option>
               <option value="MTPBA">MTPBA</option>
-              <option value="Doktor">Doktor</option>
+              <option value="Doctor">Doctor</option>
               <option value="Lainnya">Lainnya</option>
             </select>
           </div>
@@ -120,6 +120,22 @@
               </option>
               <option value="Layanan lainnya">Layanan Lainnya</option>
             </select>
+          </div>
+
+          <!-- Dynamic Location Fields -->
+          <div id="locationContainer" class="form-group full-width"
+            style="display: none; background-color: var(--neutral-light); padding: 16px; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color);">
+            <div style="display: grid; grid-template-columns: 1fr; gap: 16px;">
+              <div>
+                <label for="lokasiLaporan" style="margin-bottom: 8px;">Lokasi Laporan (Gedung/Area) *</label>
+                <input type="text" id="lokasiLaporan" name="lokasiLaporan"
+                  placeholder="Contoh: Gedung A, Area Parkir, Kantin">
+              </div>
+              <div>
+                <label for="subLokasi" style="margin-bottom: 8px;">Sub-Lokasi / Nomor Ruangan (Opsional)</label>
+                <input type="text" id="subLokasi" name="subLokasi" placeholder="Contoh: Lantai 3, Ruang 307">
+              </div>
+            </div>
           </div>
 
           <!-- Isi Pengaduan -->
@@ -170,7 +186,7 @@
 
         <div style="margin-top: 30px; text-align: right;">
           <button type="submit" class="btn btn-primary" id="btnSubmit">
-            <span>Kirim Pengaduan</span>
+            <span>Kirim Aspirasi</span>
           </button>
         </div>
       </form>
