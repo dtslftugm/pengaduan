@@ -394,16 +394,14 @@
           </div>
         </div>
 
-        <!-- Previous Staf Responses (if any) -->
-        <div id="revPrevResponseBox" style="display: none; margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
-          <span class="detail-title" style="color: var(--secondary); font-size: 1rem; display: block; margin-bottom: 8px;">Tanggapan Staf Sebelumnya</span>
-          <div class="detail-row">
-            <div class="detail-label">Catatan Staf:</div>
-            <div class="detail-value" id="revPrevCatatan">-</div>
+        <!-- Riwayat Aktivitas (dari Log_Aktivitas) -->
+        <div id="revActivityBox" style="margin-top: 16px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span class="detail-title" style="color: var(--secondary); font-size: 1rem;">📋 Riwayat Aktivitas</span>
+            <span id="revActivityLoading" style="font-size: 0.8rem; color: var(--text-muted); display: none;">Memuat...</span>
           </div>
-          <div class="detail-row" id="revPrevFileRow" style="display: none;">
-            <div class="detail-label">Bukti Staf:</div>
-            <div class="detail-value"><a href="#" id="revPrevFileLink" target="_blank" class="disclaimer-link">Buka Berkas Bukti 📁</a></div>
+          <div id="revActivityTimeline" style="display: flex; flex-direction: column; gap: 10px; max-height: 200px; overflow-y: auto; padding-right: 4px;">
+            <p id="revActivityEmpty" style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Belum ada riwayat aktivitas.</p>
           </div>
         </div>
       </div>
