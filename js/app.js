@@ -1072,6 +1072,7 @@ async function fetchSupervisorStats() {
   } catch (err) {
     console.error("Gagal memuat data statistik Supervisor: ", err);
   }
+}
 
 // Modal Review Actions
 function openReviewModal(id) {
