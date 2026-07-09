@@ -14,30 +14,39 @@ let uploadedFile = {
 };
 let isUploadActive = true; // true = upload file, false = paste link
 
-// Helper: Format nomor HP menjadi tautan WhatsApp clickable (https://wa.me/62...)
-function formatWhatsAppLink(phoneNumber) {
+// Helper: Format string nomor telepon agar selalu diawali 0 untuk disimpan ke sheet
+function sanitizePhoneNumber(phoneNumber) {
   if (!phoneNumber) return "";
   let trimmed = phoneNumber.trim();
   if (trimmed === "") return "";
 
-  // Jika sudah berupa tautan wa.me atau whatsapp.com, kembalikan apa adanya (atau paksa protokol https)
-  if (trimmed.includes("wa.me/") || trimmed.includes("whatsapp.com/")) {
-    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-      return "https://" + trimmed;
-    }
-    return trimmed;
+  // Jika input tak sengaja memuat link, ambil nomornya saja
+  if (trimmed.includes("wa.me/")) {
+    trimmed = trimmed.split("wa.me/")[1];
   }
 
-  // Bersihkan semua karakter selain angka
+  // Bersihkan karakter selain angka
   let cleaned = trimmed.replace(/\D/g, "");
+
+  if (cleaned.length > 0) {
+    if (cleaned.startsWith("62")) {
+      cleaned = "0" + cleaned.slice(2);
+    } else if (!cleaned.startsWith("0")) {
+      cleaned = "0" + cleaned;
+    }
+    return cleaned;
+  }
+  return trimmed;
+}
+
+// Helper: Format string nomor telepon menjadi link WhatsApp clickable
+function formatWhatsAppLink(phoneNumber) {
+  if (!phoneNumber) return "#";
+  let cleaned = phoneNumber.replace(/\D/g, "");
   if (cleaned.startsWith("0")) {
     cleaned = "62" + cleaned.slice(1);
   }
-
-  if (cleaned.length > 0) {
-    return "https://wa.me/" + cleaned;
-  }
-  return trimmed;
+  return cleaned ? "https://wa.me/" + cleaned : "#";
 }
 
 // --- Helper: Deteksi Halaman Aktif ---
@@ -258,7 +267,7 @@ function initIndexPage() {
       nama: document.getElementById("nama").value,
       status: document.getElementById("status").value,
       email: document.getElementById("email").value,
-      noHp: formatWhatsAppLink(document.getElementById("noHp").value),
+      noHp: sanitizePhoneNumber(document.getElementById("noHp").value),
       kategori: document.getElementById("kategori").value,
       lokasiLaporan: document.getElementById("lokasiLaporan") ? document.getElementById("lokasiLaporan").value : "",
       subLokasi: document.getElementById("subLokasi") ? document.getElementById("subLokasi").value : "",
@@ -453,8 +462,8 @@ async function fetchComplaintStatus(id, token) {
       const noHpRow = document.getElementById("detNoHpRow");
       if (data.noHp) {
         const noHpLink = document.getElementById("detNoHpLink");
-        noHpLink.href = data.noHp;
-        noHpLink.textContent = data.noHp.replace("https://", "");
+        noHpLink.href = formatWhatsAppLink(data.noHp);
+        noHpLink.textContent = data.noHp;
         noHpRow.style.display = "flex";
       } else {
         noHpRow.style.display = "none";
@@ -641,6 +650,10 @@ function initAdminPage() {
     setupDropzone("dropzoneRev", "fileRevInput", "uploadRevProgressBar", "uploadRevProgressContainer", "uploadRevStatusText", "btnRetryRevUpload");
     setupAttachmentToggle("btnToggleRevUpload", "btnToggleRevLink", "uploadRevContainer", "linkRevContainer");
 
+    // Setup WO Complete Modal elements
+    setupDropzone("dropzoneWO", "fileWOInput", "uploadWOProgressBar", "uploadWOProgressContainer", "uploadWOStatusText", "btnRetryWOUpload");
+    setupAttachmentToggle("btnToggleWOUpload", "btnToggleWOLink", "uploadWOContainer", "linkWOContainer");
+
     const formReview = document.getElementById("formReviewUpdate");
     formReview.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -667,8 +680,8 @@ async function fetchQuickReport(id, token) {
       const quickNoHpRow = document.getElementById("quickNoHpRow");
       if (data.noHp) {
         const quickNoHpLink = document.getElementById("quickNoHpLink");
-        quickNoHpLink.href = data.noHp;
-        quickNoHpLink.textContent = data.noHp.replace("https://", "");
+        quickNoHpLink.href = formatWhatsAppLink(data.noHp);
+        quickNoHpLink.textContent = data.noHp;
         quickNoHpRow.style.display = "flex";
       } else {
         quickNoHpRow.style.display = "none";
@@ -818,6 +831,7 @@ function loadDashboardView() {
 
   // Ambil list laporan
   fetchReportsList();
+  fetchWorkOrdersList();
 }
 
 function handleLogout() {
@@ -909,23 +923,38 @@ function applyFilters() {
 function switchTab(tab) {
   const btnList = document.getElementById("tabBtnList");
   const btnStats = document.getElementById("tabBtnStats");
+  const btnWO = document.getElementById("tabBtnWO");
+  
   const contList = document.getElementById("tabContentList");
   const contStats = document.getElementById("tabContentStats");
+  const contWO = document.getElementById("tabContentWO");
+
+  // Reset semua
+  btnList.classList.remove("active");
+  btnStats.classList.remove("active");
+  if (btnWO) btnWO.classList.remove("active");
+  
+  contList.style.display = "none";
+  contStats.style.display = "none";
+  if (contWO) contWO.style.display = "none";
 
   if (tab === "list") {
     btnList.classList.add("active");
-    btnStats.classList.remove("active");
     contList.style.display = "block";
-    contStats.style.display = "none";
+  } else if (tab === "wo") {
+    if (btnWO) btnWO.classList.add("active");
+    if (contWO) contWO.style.display = "block";
   } else {
     btnStats.classList.add("active");
-    btnList.classList.remove("active");
-    contList.style.display = "none";
     contStats.style.display = "block";
+    fetchSupervisorStats(); // Lazy-load: hanya fetch saat tab diklik
   }
 }
 
-// Fetch Supervisor Stats
+// Fetch Supervisor Stats & render charts
+let chartStatusInst = null;
+let chartKategoriInst = null;
+
 async function fetchSupervisorStats() {
   const email = sessionStorage.getItem("admin_email");
   const pass = sessionStorage.getItem("admin_pass");
@@ -934,68 +963,115 @@ async function fetchSupervisorStats() {
     const response = await fetch(`${API_URL}?action=get_stats&email=${email}&password=${pass}`);
     const resData = await response.json();
 
-    if (resData.success) {
-      const stats = resData.data;
+    if (!resData.success) return;
+    const stats = resData.data;
 
-      // Update Core Cards
-      document.getElementById("statTotalReports").textContent = stats.totalReports;
-      document.getElementById("statPendingReports").textContent = stats.statusStats.Pending || 0;
-      document.getElementById("statBantahanReports").textContent = stats.statusStats.Bantahan || 0;
-      document.getElementById("statAvgResTime").innerHTML = `${stats.avgResolutionDaysGlobal} <span style="font-size: 1rem; font-weight: normal; color: #64748b;">Hari</span>`;
+    // ── Core Aduan KPI Cards ─────────────────────────────
+    document.getElementById("statTotalReports").textContent = stats.totalReports;
+    document.getElementById("statPendingReports").textContent = stats.statusStats.Pending || 0;
+    document.getElementById("statBantahanReports").textContent = stats.statusStats.Bantahan || 0;
+    document.getElementById("statAvgResTime").innerHTML =
+      `${stats.avgResolutionDaysGlobal} <span style="font-size:1rem;font-weight:normal;color:#64748b;">Hari</span>`;
 
-      // Render Table stats per category
-      const tbody = document.getElementById("categoryStatsTableBody");
-      tbody.innerHTML = "";
-
-      const categories = [
-        "Layanan Sarana Prasarana",
-        "Layanan Keuangan",
-        "Layanan Penelitian dan PKM",
-        "Layanan Laboratorium",
-        "Layanan IT",
-        "Layanan Akademik",
-        "Layanan lainnya"
-      ];
-
-      categories.forEach(cat => {
-        const count = stats.categoryStats[cat] || 0;
-        const avg = stats.avgResolutionDaysPerCategory[cat] || "-";
-
-        const row = document.createElement("tr");
-        row.innerHTML = `
-          <td><strong>${cat}</strong></td>
-          <td>${count} Laporan</td>
-          <td>${avg !== "-" ? avg + " Hari" : "Belum ada penyelesaian"}</td>
-        `;
-        tbody.appendChild(row);
-      });
-
-      // Render negligence alerts (Staf Lalai)
-      const alertBox = document.getElementById("negligenceAlertBox");
-      const alertCont = document.getElementById("negligentListContainer");
-      alertCont.innerHTML = "";
-
-      if (stats.negligentReports.length > 0) {
-        alertBox.style.display = "block";
-        stats.negligentReports.forEach(item => {
-          const div = document.createElement("div");
-          div.className = "alert-item";
-          div.innerHTML = `
-            <span style="font-size: 0.9rem; color: #881337;">
-              📌 Laporan <strong>${item.id}</strong> bagian <strong>${item.kategori}</strong> oleh <strong>${item.nama}</strong> sudah pending selama <strong>${item.durasiHari} hari</strong>.
-            </span>
-            <button class="btn btn-primary" style="background-color: var(--danger); font-size: 0.75rem; padding: 4px 8px;" onclick="openReviewModal('${item.id}')">Tinjau Staf</button>
-          `;
-          alertCont.appendChild(div);
-        });
-      } else {
-        alertBox.style.display = "none";
-      }
+    // ── WO KPI Cards ─────────────────────────────────────
+    if (stats.woStats) {
+      const wo = stats.woStats;
+      document.getElementById("statTotalWO").textContent      = wo.total;
+      document.getElementById("statWOInProgress").textContent  = wo.diproses;
+      document.getElementById("statWODone").textContent        = wo.selesai;
+      document.getElementById("statAvgWODuration").innerHTML   =
+        `${wo.avgDurasiMenit} <span style="font-size:1rem;font-weight:normal;color:#64748b;">Menit</span>`;
     }
+
+    // ── Tabel per-Kategori ───────────────────────────────
+    const categories = [
+      "Layanan Sarana Prasarana", "Layanan Keuangan",
+      "Layanan Penelitian dan PKM", "Layanan Laboratorium",
+      "Layanan IT", "Layanan Akademik", "Layanan lainnya"
+    ];
+    const tbody = document.getElementById("categoryStatsTableBody");
+    tbody.innerHTML = "";
+    categories.forEach(cat => {
+      const count = stats.categoryStats[cat] || 0;
+      const avg   = stats.avgResolutionDaysPerCategory[cat] || "-";
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td><strong>${cat}</strong></td>
+        <td>${count} Laporan</td>
+        <td>${avg !== "-" ? avg + " Hari" : "Belum ada penyelesaian"}</td>
+      `;
+      tbody.appendChild(row);
+    });
+
+    // ── Chart 1: Donut – Distribusi Status ───────────────
+    const statusLabels = ["Pending", "Diproses", "Selesai", "Ditolak", "Bantahan"];
+    const statusColors = ["#f4a261", "#00a896", "#2a9d8f", "#e76f51", "#c1121f"];
+    const statusData   = statusLabels.map(l => stats.statusStats[l] || 0);
+    const ctxPie = document.getElementById("chartStatusDist").getContext("2d");
+    if (chartStatusInst) chartStatusInst.destroy();
+    chartStatusInst = new Chart(ctxPie, {
+      type: "doughnut",
+      data: {
+        labels: statusLabels,
+        datasets: [{ data: statusData, backgroundColor: statusColors, borderWidth: 2, borderColor: "#fff" }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: "bottom", labels: { font: { family: "'Outfit', sans-serif", size: 11 }, padding: 10 } } }
+      }
+    });
+
+    // ── Chart 2: Bar – Aduan per Kategori ────────────────
+    const shortLabels = categories.map(c => c.replace("Layanan ", ""));
+    const catData     = categories.map(c => stats.categoryStats[c] || 0);
+    const ctxBar = document.getElementById("chartKategori").getContext("2d");
+    if (chartKategoriInst) chartKategoriInst.destroy();
+    chartKategoriInst = new Chart(ctxBar, {
+      type: "bar",
+      data: {
+        labels: shortLabels,
+        datasets: [{
+          label: "Jumlah Laporan", data: catData,
+          backgroundColor: "rgba(0,168,150,0.7)", borderColor: "#00a896",
+          borderWidth: 1, borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { family: "'Outfit', sans-serif", size: 10 } } },
+          y: { beginAtZero: true, ticks: { stepSize: 1, font: { family: "'Outfit', sans-serif" } } }
+        }
+      }
+    });
+
+    // ── Negligence Alerts ────────────────────────────────
+    const alertBox  = document.getElementById("negligenceAlertBox");
+    const alertCont = document.getElementById("negligentListContainer");
+    alertCont.innerHTML = "";
+    if (stats.negligentReports && stats.negligentReports.length > 0) {
+      alertBox.style.display = "block";
+      stats.negligentReports.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "alert-item";
+        div.innerHTML = `
+          <span style="font-size:0.9rem;color:#881337;">
+            📌 Laporan <strong>${item.id}</strong> bagian <strong>${item.kategori}</strong>
+            oleh <strong>${item.nama}</strong> sudah pending selama <strong>${item.durasiHari} hari</strong>.
+          </span>
+          <button class="btn btn-primary" style="background-color:var(--danger);font-size:0.75rem;padding:4px 8px;"
+            onclick="openReviewModal('${item.id}')">Tinjau ▶</button>
+        `;
+        alertCont.appendChild(div);
+      });
+    } else {
+      alertBox.style.display = "none";
+    }
+
   } catch (err) {
     console.error("Gagal memuat data statistik Supervisor: ", err);
   }
-}
 
 // Modal Review Actions
 function openReviewModal(id) {
@@ -1009,8 +1085,8 @@ function openReviewModal(id) {
   const revNoHpRow = document.getElementById("revNoHpRow");
   if (selectedReport.noHp) {
     const revNoHpLink = document.getElementById("revNoHpLink");
-    revNoHpLink.href = selectedReport.noHp;
-    revNoHpLink.textContent = selectedReport.noHp.replace("https://", "");
+    revNoHpLink.href = formatWhatsAppLink(selectedReport.noHp);
+    revNoHpLink.textContent = selectedReport.noHp;
     revNoHpRow.style.display = "flex";
   } else {
     revNoHpRow.style.display = "none";
@@ -1063,9 +1139,25 @@ function openReviewModal(id) {
     prevBox.style.display = "none";
   }
 
-  // Setup Default Values Form
-  document.getElementById("revNewStatus").value = selectedReport.statusProgress === "Bantahan" ? "Diproses" : selectedReport.statusProgress;
+  // ── Pre-fill Form (Status & Catatan) ────────────────
+  // Petakan status yang tidak ada di dropdown ke nilai yang paling logis
+  const statusMap = {
+    "Pending":   "Diproses",
+    "Diproses":  "Diproses",
+    "Bantahan":  "Diproses",   // saat ada bantahan, staf harus proses ulang
+    "Selesai":   "Selesai",
+    "Ditolak":   "Ditolak"
+  };
+  const mappedStatus = statusMap[selectedReport.statusProgress] || "Diproses";
+  
+  // Set nilai dropdown dengan cara yang pasti bekerja di semua browser
+  const selectEl = document.getElementById("revNewStatus");
+  selectEl.value = "";                   // reset dulu ke placeholder
+  selectEl.value = mappedStatus;         // kemudian assign nilai yang benar
+
+  // Pre-fill catatan staf sebelumnya ke textarea
   document.getElementById("revCatatan").value = selectedReport.catatanStaf || "";
+  
   resetUploadState("uploadRevProgressContainer", "uploadRevStatusText");
 
   // Tampilkan Modal overlay
@@ -1133,7 +1225,275 @@ async function handleReviewUpdateSubmit() {
 }
 
 // ==========================================
-// 5. UTILITY: FORMAT TANGGAL
+// 5. WORK ORDER / KANBAN LOGIC
+// ==========================================
+let allWorkOrders = [];
+let sortableInstance = null;
+
+async function fetchWorkOrdersList() {
+  const email = sessionStorage.getItem("admin_email");
+  const pass = sessionStorage.getItem("admin_pass");
+  const container = document.getElementById("woListContainer");
+
+  container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px;">Memuat data penugasan...</div>`;
+
+  try {
+    const response = await fetch(`${API_URL}?action=get_work_orders&email=${email}&password=${pass}`);
+    const resData = await response.json();
+
+    if (resData.success) {
+      allWorkOrders = resData.data || [];
+      // Sort berdasarkan Prioritas (1 paling tinggi, biasanya di atas)
+      allWorkOrders.sort((a, b) => parseInt(a.Prioritas || 99) - parseInt(b.Prioritas || 99));
+      renderWorkOrders();
+    } else {
+      container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 30px;">Gagal memuat WO: ${resData.message}</div>`;
+    }
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 30px;">Gagal terhubung ke server.</div>`;
+  }
+}
+
+function renderWorkOrders() {
+  const container = document.getElementById("woListContainer");
+  const role = sessionStorage.getItem("admin_role");
+  container.innerHTML = "";
+
+  if (allWorkOrders.length === 0) {
+    container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px;">Tidak ada penugasan Work Order.</div>`;
+    document.getElementById("btnSaveWOPriority").style.display = "none";
+    return;
+  }
+
+  allWorkOrders.forEach((wo) => {
+    const card = document.createElement("div");
+    card.className = "wo-card";
+    card.dataset.woId = wo.WO_ID;
+    card.style.cssText = "background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); padding: 16px; border-radius: var(--border-radius-sm); cursor: grab; display: flex; flex-direction: column; gap: 8px;";
+    
+    // Status color
+    let statusColor = "#64748b";
+    if (wo.Status_WO === "Open") statusColor = "var(--primary)";
+    if (wo.Status_WO === "Diproses") statusColor = "var(--accent)";
+    if (wo.Status_WO === "Selesai") statusColor = "var(--success)";
+    
+    // Tentukan aksi / tombol untuk PIC terkait
+    const email = sessionStorage.getItem("admin_email");
+    let actionButtons = "";
+    
+    if (wo.Assignee_Email === email && wo.Status_WO !== "Selesai") {
+      if (wo.Status_WO === "Open") {
+        actionButtons = `<button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="startWorkOrder('${wo.WO_ID}')">Mulai Kerjakan ▶</button>`;
+      } else if (wo.Status_WO === "Diproses") {
+        actionButtons = `<button class="btn btn-primary" style="background-color: var(--success); font-size: 0.8rem; padding: 6px 12px;" onclick="openWOCompleteModal('${wo.WO_ID}')">Selesaikan ✓</button>`;
+      }
+    }
+
+    card.innerHTML = `
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <span style="font-size: 0.8rem; font-weight: 700; color: #64748b;">${wo.WO_ID} (Ref: ${wo.ADU_ID})</span>
+          <h4 style="margin: 4px 0 0 0; color: var(--text-dark);">${wo.Kategori} - ${wo.Lokasi}</h4>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          ${actionButtons}
+          <span class="badge" style="background-color: ${statusColor}; color: #fff;">${wo.Status_WO}</span>
+        </div>
+      </div>
+      <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 8px;">
+        ${wo.Deskripsi}
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
+        <span style="background: var(--neutral-light); padding: 4px 8px; border-radius: 4px; font-weight: 600;">PIC: ${wo.Assignee_Email}</span>
+        <span style="color: var(--secondary); font-weight: 700;">Prioritas: <span class="priority-label">${wo.Prioritas}</span></span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Init Sortable JS
+  if (sortableInstance) sortableInstance.destroy();
+  
+  // Hanya Supervisor atau PIC terkait yang boleh reorder. Asumsi semua PIC boleh reorder miliknya.
+  const isDraggable = true; 
+  if (isDraggable) {
+    sortableInstance = Sortable.create(container, {
+      animation: 150,
+      ghostClass: 'sortable-ghost',
+      onEnd: function (evt) {
+        // Update UI priority labels
+        const cards = container.querySelectorAll('.wo-card');
+        cards.forEach((c, index) => {
+          c.querySelector('.priority-label').textContent = index + 1;
+        });
+        document.getElementById("btnSaveWOPriority").style.display = "inline-block";
+      }
+    });
+  }
+}
+
+async function saveWOPriority() {
+  const container = document.getElementById("woListContainer");
+  const cards = container.querySelectorAll('.wo-card');
+  const updates = [];
+  
+  cards.forEach((card, index) => {
+    updates.push({
+      woId: card.dataset.woId,
+      prioritas: index + 1
+    });
+  });
+
+  const email = sessionStorage.getItem("admin_email");
+  const pass = sessionStorage.getItem("admin_pass");
+  const btn = document.getElementById("btnSaveWOPriority");
+
+  btn.disabled = true;
+  btn.textContent = "Menyimpan...";
+
+  try {
+    const payload = {
+      action: "update_wo_priority",
+      email: email,
+      password: pass,
+      updates: updates
+    };
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const resData = await response.json();
+
+    if (resData.success) {
+      btn.style.display = "none";
+      alert("Prioritas Work Order berhasil diperbarui!");
+      fetchWorkOrdersList();
+    } else {
+      alert("Gagal: " + resData.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menghubungi server.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Simpan Perubahan Prioritas";
+  }
+}
+
+// ------------------------------------------
+// WORK ORDER ACTIONS
+// ------------------------------------------
+
+async function startWorkOrder(woId) {
+  if (!confirm(`Mulai kerjakan Work Order ${woId}? Waktu pengerjaan akan mulai dihitung.`)) return;
+
+  const email = sessionStorage.getItem("admin_email");
+  const pass = sessionStorage.getItem("admin_pass");
+
+  try {
+    const payload = {
+      action: "start_work_order",
+      email: email,
+      password: pass,
+      woId: woId
+    };
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const resData = await response.json();
+
+    if (resData.success) {
+      alert("Work Order berhasil dimulai!");
+      fetchWorkOrdersList();
+      fetchReportsList(); // Refresh status pengaduan utama
+    } else {
+      alert("Gagal memulai Work Order: " + resData.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menghubungi server.");
+  }
+}
+
+function openWOCompleteModal(woId) {
+  document.getElementById("woIdToComplete").value = woId;
+  document.getElementById("woCompleteLabelId").textContent = woId;
+  document.getElementById("woCompleteCatatan").value = "";
+  
+  // Reset upload
+  isUploadActive = true;
+  document.getElementById("btnToggleWOUpload").classList.add("active");
+  document.getElementById("btnToggleWOLink").classList.remove("active");
+  document.getElementById("uploadWOContainer").style.display = "block";
+  document.getElementById("linkWOContainer").style.display = "none";
+  document.getElementById("uploadWOProgressBar").style.width = "0%";
+  document.getElementById("fileWOLinkUrl").value = "";
+  uploadedFile = { name: "", mimeType: "", data: "" };
+
+  document.getElementById("woCompleteModal").style.display = "flex";
+}
+
+function closeWOCompleteModal() {
+  document.getElementById("woCompleteModal").style.display = "none";
+}
+
+async function submitWOComplete() {
+  const woId = document.getElementById("woIdToComplete").value;
+  const catatan = document.getElementById("woCompleteCatatan").value.trim();
+  const btn = document.getElementById("btnWOCompleteSubmit");
+
+  const email = sessionStorage.getItem("admin_email");
+  const pass = sessionStorage.getItem("admin_pass");
+
+  const payload = {
+    action: "complete_work_order",
+    email: email,
+    password: pass,
+    woId: woId,
+    catatanProgress: catatan
+  };
+
+  if (isUploadActive && uploadedFile.data) {
+    payload.fileData = uploadedFile.data;
+    payload.fileMimeType = uploadedFile.mimeType;
+    payload.fileName = uploadedFile.name;
+  } else if (!isUploadActive) {
+    payload.fileLinkUrl = document.getElementById("fileWOLinkUrl").value;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Menyimpan...";
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const resData = await response.json();
+
+    if (resData.success) {
+      alert("Work Order berhasil diselesaikan!");
+      closeWOCompleteModal();
+      fetchWorkOrdersList();
+      fetchReportsList();
+    } else {
+      alert("Gagal menyelesaikan Work Order: " + resData.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("Gagal menghubungi server.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Selesaikan & Simpan";
+  }
+}
+
+// ==========================================
+// 6. UTILITY: FORMAT TANGGAL
 // ==========================================
 function formatDate(dateString) {
   if (!dateString) return "-";

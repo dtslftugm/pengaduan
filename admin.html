@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Portal Staf & Supervisor - DTSL FT UGM</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -173,6 +175,7 @@
       <!-- Navigation Tabs (Only visible to Supervisor) -->
       <div class="attachment-toggle" id="supervisorTabs" style="display: none; margin-bottom: 24px;">
         <button class="toggle-btn active" id="tabBtnList" onclick="switchTab('list')">Daftar Pengaduan</button>
+        <button class="toggle-btn" id="tabBtnWO" onclick="switchTab('wo')">Manajemen Penugasan (WO)</button>
         <button class="toggle-btn" id="tabBtnStats" onclick="switchTab('stats')">Laporan Kinerja (Statistik)</button>
       </div>
 
@@ -230,6 +233,26 @@
         </div>
       </div>
 
+      <!-- TAB Content 3: Manajemen Penugasan (Work Orders) -->
+      <div id="tabContentWO" style="display: none;">
+        <div class="card-wrapper admin-list-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="color: var(--primary); font-weight: 700; margin: 0;">Daftar Work Order</h4>
+            <span style="font-size: 0.85rem; color: #64748b;" id="woHelperText">Geser kartu untuk mengubah prioritas (hanya untuk Supervisor/PIC layanan terkait).</span>
+          </div>
+          
+          <!-- Kanban/List Layout Container for SortableJS -->
+          <div id="woListContainer" style="display: flex; flex-direction: column; gap: 12px; min-height: 200px; padding: 10px; background-color: var(--neutral-light); border-radius: var(--border-radius-md);">
+            <!-- WO Cards will be injected here via JS -->
+            <div style="text-align: center; color: #64748b; padding: 30px;">Memuat data penugasan...</div>
+          </div>
+          
+          <div style="text-align: right; margin-top: 16px;">
+            <button class="btn btn-primary" id="btnSaveWOPriority" style="display: none;" onclick="saveWOPriority()">Simpan Perubahan Prioritas</button>
+          </div>
+        </div>
+      </div>
+
       <!-- TAB Content 2: Laporan Kinerja (Supervisor Stats) -->
       <div id="tabContentStats" style="display: none;">
         
@@ -279,6 +302,42 @@
             </table>
           </div>
           
+          <!-- WO Stats Cards -->
+          <div class="stats-grid" id="woStatsGrid" style="margin-top: 24px;">
+            <div class="stats-card">
+              <span class="stats-title">Total Work Order</span>
+              <span class="stats-num" id="statTotalWO">0</span>
+            </div>
+            <div class="stats-card">
+              <span class="stats-title">WO Sedang Dikerjakan</span>
+              <span class="stats-num" id="statWOInProgress" style="color: var(--accent);">0</span>
+            </div>
+            <div class="stats-card">
+              <span class="stats-title">WO Selesai</span>
+              <span class="stats-num" id="statWODone" style="color: var(--success);">0</span>
+            </div>
+            <div class="stats-card">
+              <span class="stats-title">Rata-rata Durasi WO</span>
+              <span class="stats-num" id="statAvgWODuration">- <span style="font-size: 1rem; font-weight: normal; color: #64748b;">Menit</span></span>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+            <div class="card-wrapper" style="padding: 20px;">
+              <h4 style="color: var(--primary); font-weight: 700; margin-bottom: 16px;">Distribusi Status Aduan</h4>
+              <div style="position: relative; height: 240px;">
+                <canvas id="chartStatusDist"></canvas>
+              </div>
+            </div>
+            <div class="card-wrapper" style="padding: 20px;">
+              <h4 style="color: var(--primary); font-weight: 700; margin-bottom: 16px;">Jumlah Aduan per Kategori</h4>
+              <div style="position: relative; height: 240px;">
+                <canvas id="chartKategori"></canvas>
+              </div>
+            </div>
+          </div>
+
           <div style="margin-top: 24px; text-align: right;">
             <button class="btn btn-secondary" onclick="window.print()">Cetak Laporan Kinerja ⎙</button>
           </div>
@@ -355,9 +414,9 @@
           <div class="form-group" style="margin-bottom: 0;">
             <label for="revNewStatus">Update Status Progress *</label>
             <select id="revNewStatus" required>
-              <option value="" disabled selected>Pilih Status Baru</option>
+              <option value="" disabled>Pilih Status Baru</option>
               <option value="Diproses">Diproses (Dalam Penanganan)</option>
-              <option value="Selesai">Selesai (Ditangani & Closed)</option>
+              <option value="Selesai">Selesai (Ditangani &amp; Closed)</option>
               <option value="Ditolak">Ditolak</option>
             </select>
           </div>
@@ -398,6 +457,61 @@
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
           <button type="button" class="btn" style="background-color: #cbd5e1; color: var(--neutral-dark);" onclick="closeReviewModal()">Batal</button>
           <button type="submit" class="btn btn-primary" id="btnRevSubmit">Simpan Perubahan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Selesaikan Work Order (Fase 4) -->
+  <div id="woCompleteModal" class="modal-overlay">
+    <div class="modal-content card-wrapper" style="max-width: 600px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="color: var(--primary); font-weight: 700; margin: 0;">Selesaikan Work Order</h3>
+        <button class="close-btn" onclick="closeWOCompleteModal()">×</button>
+      </div>
+
+      <form id="formWOComplete" onsubmit="event.preventDefault(); submitWOComplete();">
+        <input type="hidden" id="woIdToComplete" value="">
+        
+        <div style="margin-bottom: 16px;">
+          <strong style="color: var(--text-dark);">Work Order ID: </strong> <span id="woCompleteLabelId">-</span>
+        </div>
+
+        <div class="form-group full-width" style="margin-bottom: 16px;">
+          <label for="woCompleteCatatan">Catatan Penyelesaian *</label>
+          <textarea id="woCompleteCatatan" rows="3" placeholder="Tulis rincian tindakan penyelesaian..." required></textarea>
+        </div>
+
+        <div class="form-group full-width" style="margin-bottom: 0;">
+          <label>Unggah Bukti Pengerjaan (Maks 3MB)</label>
+          <div class="attachment-toggle" style="margin-bottom: 8px;">
+            <button type="button" class="toggle-btn active" id="btnToggleWOUpload">Unggah Berkas</button>
+            <button type="button" class="toggle-btn" id="btnToggleWOLink">Tempel Link Dokumen</button>
+          </div>
+          
+          <div id="uploadWOContainer">
+            <div class="upload-area" id="dropzoneWO" style="padding: 15px;">
+              <div class="upload-icon" style="font-size: 1.2rem; margin-bottom: 4px;">📁</div>
+              <span class="upload-text" style="font-size: 0.85rem;">Klik untuk unggah foto/dokumen bukti</span>
+              <input type="file" id="fileWOInput" accept="image/*,application/pdf" style="display: none;">
+            </div>
+            <div class="progress-container" id="uploadWOProgressContainer">
+              <div class="progress-bar" id="uploadWOProgressBar"></div>
+            </div>
+            <div class="upload-status-info" id="uploadWOStatusText" style="display: none;">
+              <span>Menyiapkan berkas...</span>
+              <button type="button" class="retry-btn" id="btnRetryWOUpload">Coba Lagi</button>
+            </div>
+          </div>
+
+          <div id="linkWOContainer" style="display: none;">
+            <input type="text" id="fileWOLinkUrl" placeholder="Masukkan link dokumen bukti alternatif">
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px;">
+          <button type="button" class="btn" style="background-color: #cbd5e1; color: var(--neutral-dark);" onclick="closeWOCompleteModal()">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnWOCompleteSubmit">Selesaikan & Simpan</button>
         </div>
       </form>
     </div>

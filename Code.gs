@@ -231,6 +231,14 @@ function doPost(e) {
       result = updateStatusAction(params);
     } else if (action === "bantah_status") {
       result = submitBantahanAction(params);
+    } else if (action === "create_work_order") {
+      result = createWorkOrderAction(params);
+    } else if (action === "update_wo_priority") {
+      result = updateWOPriorityAction(params);
+    } else if (action === "start_work_order") {
+      result = startWorkOrderAction(params);
+    } else if (action === "complete_work_order") {
+      result = completeWorkOrderAction(params);
     } else {
       result.message = "Aksi POST tidak dikenal.";
     }
@@ -762,6 +770,8 @@ function doGet(e) {
       result = getAllReportsAction(e.parameter);
     } else if (action === "get_stats") {
       result = getStatsAction(e.parameter);
+    } else if (action === "get_work_orders") {
+      result = getWorkOrdersAction(e.parameter);
     } else {
       result.message = "Aksi GET tidak dikenal.";
     }
@@ -1092,8 +1102,471 @@ function getStatsAction(params) {
       categoryStats: statsKategori,
       avgResolutionDaysGlobal: avgGlobalDays,
       avgResolutionDaysPerCategory: avgKategoriDays,
-      negligentReports: kelalaianStaf
+      negligentReports: kelalaianStaf,
+      woStats: getWOStats_()
     }
   };
 }
 
+// Helper: Mengambil statistik Work Order untuk Laporan Kinerja
+function getWOStats_() {
+  try {
+    var ss = getSpreadsheet();
+    var sheet = ss.getSheetByName("WorkOrder");
+    if (!sheet) return null;
+    
+    var data = sheet.getDataRange().getValues();
+    if (data.length < 2) return { total: 0, open: 0, diproses: 0, selesai: 0, avgDurasiMenit: 0 };
+    
+    var headers = data[0];
+    var statIdx = findCol(headers, "Status_WO");
+    var durIdx  = findCol(headers, "Durasi_Aktif_Menit");
+    
+    var total = 0, open = 0, diproses = 0, selesai = 0;
+    var totalDurasi = 0, countDurasi = 0;
+    
+    for (var i = 1; i < data.length; i++) {
+      if (!data[i][findCol(headers, "WO_ID")]) continue;
+      total++;
+      var st = data[i][statIdx];
+      if (st === "Open")     open++;
+      if (st === "Diproses") diproses++;
+      if (st === "Selesai")  selesai++;
+      
+      var dur = parseFloat(data[i][durIdx]);
+      if (!isNaN(dur) && dur > 0) {
+        totalDurasi += dur;
+        countDurasi++;
+      }
+    }
+    
+    return {
+      total: total,
+      open: open,
+      diproses: diproses,
+      selesai: selesai,
+      avgDurasiMenit: countDurasi > 0 ? Math.round(totalDurasi / countDurasi) : 0
+    };
+  } catch (e) {
+    Logger.log("getWOStats_ error: " + e.toString());
+    return null;
+  }
+}
+
+// ==========================================
+// FASE 2: WORK ORDER & DISPATCH LAYER LOGIC
+// ==========================================
+
+// Helper: Mencatat aktivitas ke sheet Log_Aktivitas
+function logActivity(aduId, woId, aktor, peran, aksi, detail) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName("Log_Aktivitas");
+  if (!sheet) return false;
+  
+  var timestamp = new Date();
+  var logId = "LOG-" + Utilities.formatDate(timestamp, "GMT+7", "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
+  var detailStr = typeof detail === 'object' ? JSON.stringify(detail) : detail;
+  
+  var headers = sheet.getRange(1, 1, 1, Math.max(1, sheet.getLastColumn())).getValues()[0];
+  var newRow = new Array(headers.length);
+  for (var i = 0; i < newRow.length; i++) newRow[i] = "";
+  
+  var setVal = function(colName, val) {
+    var idx = findCol(headers, colName);
+    if (idx !== -1) newRow[idx] = val;
+  };
+  
+  setVal("Log_ID", logId);
+  setVal("ADU_ID", aduId || "");
+  setVal("WO_ID", woId || "");
+  setVal("Timestamp", timestamp);
+  setVal("Aktor", aktor || "System");
+  setVal("Peran", peran || "System");
+  setVal("Aksi", aksi);
+  setVal("Detail", detailStr || "");
+  
+  sheet.appendRow(newRow);
+  return true;
+}
+
+// Helper: Mengirim Notifikasi ke Pekerja
+function sendWorkerNotification(woId, aduId, deskripsi, prioritas, assigneeEmail) {
+  var webAppUrl = getConfigValue("WEB_APP_FRONTEND_URL");
+  var adminLink = webAppUrl + "/admin.html";
+  
+  var subject = "[TUGAS BARU] Work Order " + woId + " - Prioritas: " + prioritas;
+  var htmlBody = `
+    <h2>Penugasan Baru: ${woId}</h2>
+    <p>Anda telah ditugaskan untuk menyelesaikan pengaduan <strong>${aduId}</strong>.</p>
+    <p><strong>Deskripsi Tugas:</strong> ${deskripsi}</p>
+    <p><strong>Tingkat Prioritas:</strong> ${prioritas}</p>
+    <br>
+    <p>Silakan login ke <a href="${adminLink}">Portal Staf</a> untuk melihat detail lebih lanjut.</p>
+  `;
+  
+  try {
+    MailApp.sendEmail({
+      to: assigneeEmail,
+      subject: subject,
+      htmlBody: htmlBody,
+      name: "Sistem Manajemen Penugasan DTSL",
+      replyTo: "tsipil.ft+aspirasi@ugm.ac.id"
+    });
+  } catch (err) {
+    Logger.log("Gagal mengirim email ke worker: " + err.toString());
+  }
+}
+
+// Aksi POST: Membuat Work Order
+function createWorkOrderAction(params) {
+  var ss = getSpreadsheet();
+  var sheetWO = ss.getSheetByName("WorkOrder");
+  var sheetAduan = ss.getSheetByName("Pengaduan");
+  
+  if (!sheetWO || !sheetAduan) return { success: false, message: "Sheet tidak ditemukan." };
+  
+  var auth = authenticateUser(params.email, params.token);
+  if (!auth) return { success: false, message: "Akses ditolak. Token tidak valid." };
+  if (auth.role !== "Supervisor" && auth.role !== "Staff") {
+    return { success: false, message: "Akses ditolak. Peran Anda tidak diizinkan." };
+  }
+  
+  var aduId = params.aduId;
+  var kategori = params.kategori;
+  var lokasi = params.lokasi || "";
+  var assigneeEmail = params.assigneeEmail;
+  var deskripsi = params.deskripsi;
+  var prioritas = parseInt(params.prioritas) || 1;
+  
+  var timestamp = new Date();
+  var woId = "WO-" + Utilities.formatDate(timestamp, "GMT+7", "yyyyMMdd-HHmmss") + "-" + Math.floor(Math.random() * 1000);
+  
+  // Tulis ke WorkOrder
+  var headers = sheetWO.getRange(1, 1, 1, Math.max(1, sheetWO.getLastColumn())).getValues()[0];
+  var newRow = new Array(headers.length);
+  for (var i = 0; i < newRow.length; i++) newRow[i] = "";
+  
+  var setValWO = function(colName, val) {
+    var idx = findCol(headers, colName);
+    if (idx !== -1) newRow[idx] = val;
+  };
+  
+  setValWO("WO_ID", woId);
+  setValWO("ADU_ID", aduId);
+  setValWO("Kategori", kategori);
+  setValWO("Lokasi", lokasi);
+  setValWO("Deskripsi", deskripsi);
+  setValWO("Prioritas", prioritas);
+  setValWO("Assignee_Email", assigneeEmail);
+  setValWO("Status_WO", "Open");
+  setValWO("Waktu_Mulai", "");
+  setValWO("Waktu_Selesai", "");
+  setValWO("Durasi_Aktif_Menit", 0);
+  setValWO("Catatan_Progress", "");
+  setValWO("File_Bukti_URL", "");
+  setValWO("Created_At", timestamp);
+  setValWO("Updated_At", timestamp);
+  
+  sheetWO.appendRow(newRow);
+  
+  // Update Pengaduan (Status jadi Diproses/Ditugaskan, concat WO_ID)
+  var aduData = sheetAduan.getDataRange().getValues();
+  var aduHeaders = aduData[0];
+  var aduIdIdx = findCol(aduHeaders, "ID_Pengaduan");
+  var stProgIdx = findCol(aduHeaders, "Status_Progress");
+  var woIdIdx = findCol(aduHeaders, "WO_ID");
+  var catSpvIdx = findCol(aduHeaders, "Catatan_Supervisor");
+  var tsIdx = findCol(aduHeaders, "Updated_At");
+  
+  for (var i = 1; i < aduData.length; i++) {
+    if (aduData[i][aduIdIdx] === aduId) {
+      if (stProgIdx !== -1) {
+        var currentStatus = aduData[i][stProgIdx];
+        if (currentStatus === "Pending") {
+            sheetAduan.getRange(i + 1, stProgIdx + 1).setValue("Diproses");
+        }
+      }
+      if (woIdIdx !== -1) {
+        var existingWos = aduData[i][woIdIdx];
+        var newWoIds = existingWos ? existingWos + "," + woId : woId;
+        sheetAduan.getRange(i + 1, woIdIdx + 1).setValue(newWoIds);
+      }
+      if (catSpvIdx !== -1 && params.catatanSupervisor) {
+        sheetAduan.getRange(i + 1, catSpvIdx + 1).setValue(params.catatanSupervisor);
+      }
+      if (tsIdx !== -1) sheetAduan.getRange(i + 1, tsIdx + 1).setValue(timestamp);
+      break;
+    }
+  }
+  
+  // Log & Notify
+  logActivity(aduId, woId, auth.email, auth.role, "WO_CREATED", { assignee: assigneeEmail, prioritas: prioritas });
+  sendWorkerNotification(woId, aduId, deskripsi, prioritas, assigneeEmail);
+  
+  return { success: true, message: "Work Order berhasil dibuat." };
+}
+
+// Aksi GET: Mengambil daftar Work Order
+function getWorkOrdersAction(params) {
+  var id = params.id; 
+  var email = params.email;
+  var token = params.token;
+  
+  var auth = authenticateUser(email, token);
+  if (!auth) return { success: false, message: "Akses ditolak." };
+  
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName("WorkOrder");
+  if (!sheet) return { success: false, message: "Sheet WorkOrder tidak ada." };
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, data: [] };
+  
+  var headers = data[0];
+  var list = [];
+  
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var woAssignee = row[findCol(headers, "Assignee_Email")];
+    var rowKat = row[findCol(headers, "Kategori")];
+    var woAduId = row[findCol(headers, "ADU_ID")];
+    
+    if (id && woAduId !== id) continue;
+    
+    // Auth filter: Supervisor all, Staff sees their own or their category
+    if (auth.role === "Supervisor" || (auth.role === "Staff" && (woAssignee === auth.email || rowKat === auth.kategori))) {
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) {
+        obj[headers[j]] = row[j];
+      }
+      list.push(obj);
+    }
+  }
+  
+  return { success: true, data: list };
+}
+
+// Aksi POST: Memperbarui Prioritas Work Order secara masal (bulk)
+function updateWOPriorityAction(params) {
+  var email = params.email;
+  var token = params.token;
+  var updates = params.updates; // array of {woId, prioritas}
+  
+  var auth = authenticateUser(email, token);
+  if (!auth) return { success: false, message: "Akses ditolak." };
+  
+  if (!updates || !Array.isArray(updates)) {
+    return { success: false, message: "Data updates tidak valid." };
+  }
+  
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName("WorkOrder");
+  if (!sheet) return { success: false, message: "Sheet WorkOrder tidak ada." };
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: false, message: "Data kosong." };
+  
+  var headers = data[0];
+  var woIdIdx = findCol(headers, "WO_ID");
+  var prioIdx = findCol(headers, "Prioritas");
+  var assigneeIdx = findCol(headers, "Assignee_Email");
+  var katIdx = findCol(headers, "Kategori");
+  
+  var updatedCount = 0;
+  
+  for (var i = 0; i < updates.length; i++) {
+    var update = updates[i];
+    for (var j = 1; j < data.length; j++) {
+      if (data[j][woIdIdx] === update.woId) {
+        // Validasi otoritas: Supervisor boleh semua. PIC boleh miliknya atau divisinya.
+        var rowAssignee = data[j][assigneeIdx];
+        var rowKat = data[j][katIdx];
+        
+        if (auth.role === "Supervisor" || 
+           (auth.role === "Staff" && (rowAssignee === auth.email || rowKat === auth.kategori))) {
+             sheet.getRange(j + 1, prioIdx + 1).setValue(update.prioritas);
+             updatedCount++;
+        }
+        break;
+      }
+    }
+  }
+  
+  // Log activity
+  if (updatedCount > 0) {
+    logActivity("BULK", "MULTIPLE", auth.email, auth.role, "UPDATE_PRIORITY", "Berhasil update prioritas " + updatedCount + " Work Order.");
+  }
+  
+  return { success: true, message: "Berhasil update prioritas " + updatedCount + " Work Order." };
+}
+
+// Aksi POST: PIC mulai mengerjakan WO
+function startWorkOrderAction(params) {
+  var email = params.email;
+  var token = params.token;
+  var woId = params.woId;
+  
+  var auth = authenticateUser(email, token);
+  if (!auth) return { success: false, message: "Akses ditolak." };
+  
+  var ss = getSpreadsheet();
+  var sheetWO = ss.getSheetByName("WorkOrder");
+  var sheetAdu = ss.getSheetByName("Pengaduan");
+  
+  var woData = sheetWO.getDataRange().getValues();
+  var woHeaders = woData[0];
+  var wIdIdx = findCol(woHeaders, "WO_ID");
+  var wStatIdx = findCol(woHeaders, "Status_WO");
+  var wStartIdx = findCol(woHeaders, "Waktu_Mulai");
+  var wUpdIdx = findCol(woHeaders, "Updated_At");
+  var wAduIdx = findCol(woHeaders, "ADU_ID");
+  var wAssigneeIdx = findCol(woHeaders, "Assignee_Email");
+  
+  var targetAduId = null;
+  var timestamp = new Date();
+  
+  for (var i = 1; i < woData.length; i++) {
+    if (woData[i][wIdIdx] === woId) {
+      if (woData[i][wAssigneeIdx] !== auth.email && auth.role !== "Supervisor") {
+        return { success: false, message: "Anda bukan PIC untuk WO ini." };
+      }
+      
+      sheetWO.getRange(i + 1, wStatIdx + 1).setValue("Diproses");
+      sheetWO.getRange(i + 1, wStartIdx + 1).setValue(timestamp);
+      sheetWO.getRange(i + 1, wUpdIdx + 1).setValue(timestamp);
+      targetAduId = woData[i][wAduIdx];
+      break;
+    }
+  }
+  
+  if (!targetAduId) return { success: false, message: "WO tidak ditemukan." };
+  
+  // Sinkronisasi status Pengaduan induk jika masih Pending
+  var aduData = sheetAdu.getDataRange().getValues();
+  var aIdIdx = findCol(aduData[0], "ID_Pengaduan");
+  var aStatIdx = findCol(aduData[0], "Status_Progress");
+  
+  for (var j = 1; j < aduData.length; j++) {
+    if (aduData[j][aIdIdx] === targetAduId) {
+      if (aduData[j][aStatIdx] === "Pending") {
+        sheetAdu.getRange(j + 1, aStatIdx + 1).setValue("Diproses");
+      }
+      break;
+    }
+  }
+  
+  logActivity(targetAduId, woId, auth.email, auth.role, "WO_STARTED", "PIC mulai mengerjakan.");
+  
+  return { success: true, message: "Work Order dimulai." };
+}
+
+// Aksi POST: PIC menyelesaikan WO beserta bukti
+function completeWorkOrderAction(params) {
+  var email = params.email;
+  var token = params.token;
+  var woId = params.woId;
+  var catatan = params.catatanProgress;
+  
+  var auth = authenticateUser(email, token);
+  if (!auth) return { success: false, message: "Akses ditolak." };
+  
+  var ss = getSpreadsheet();
+  var sheetWO = ss.getSheetByName("WorkOrder");
+  var sheetAdu = ss.getSheetByName("Pengaduan");
+  
+  var fileUrl = params.fileLinkUrl || "";
+  if (params.fileData && params.fileName && params.fileMimeType) {
+    var folderId = getConfigValue("DRIVE_FOLDER_ID");
+    var folder = DriveApp.getFolderById(folderId);
+    var blob = Utilities.newBlob(Utilities.base64Decode(params.fileData.split(',')[1]), params.fileMimeType, params.fileName);
+    var file = folder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    fileUrl = file.getUrl();
+  }
+  
+  var woData = sheetWO.getDataRange().getValues();
+  var woHeaders = woData[0];
+  var wIdIdx = findCol(woHeaders, "WO_ID");
+  var wStatIdx = findCol(woHeaders, "Status_WO");
+  var wEndIdx = findCol(woHeaders, "Waktu_Selesai");
+  var wStartIdx = findCol(woHeaders, "Waktu_Mulai");
+  var wDurIdx = findCol(woHeaders, "Durasi_Aktif_Menit");
+  var wCatIdx = findCol(woHeaders, "Catatan_Progress");
+  var wFileIdx = findCol(woHeaders, "File_Bukti_URL");
+  var wUpdIdx = findCol(woHeaders, "Updated_At");
+  var wAduIdx = findCol(woHeaders, "ADU_ID");
+  var wAssigneeIdx = findCol(woHeaders, "Assignee_Email");
+  
+  var targetAduId = null;
+  var timestamp = new Date();
+  
+  for (var i = 1; i < woData.length; i++) {
+    if (woData[i][wIdIdx] === woId) {
+      if (woData[i][wAssigneeIdx] !== auth.email && auth.role !== "Supervisor") {
+        return { success: false, message: "Anda bukan PIC untuk WO ini." };
+      }
+      
+      var startTime = new Date(woData[i][wStartIdx]);
+      var durasiMenit = 0;
+      if (!isNaN(startTime.getTime())) {
+        durasiMenit = Math.round((timestamp.getTime() - startTime.getTime()) / 60000);
+      }
+      
+      sheetWO.getRange(i + 1, wStatIdx + 1).setValue("Selesai");
+      sheetWO.getRange(i + 1, wEndIdx + 1).setValue(timestamp);
+      sheetWO.getRange(i + 1, wDurIdx + 1).setValue(durasiMenit);
+      sheetWO.getRange(i + 1, wCatIdx + 1).setValue(catatan);
+      sheetWO.getRange(i + 1, wFileIdx + 1).setValue(fileUrl);
+      sheetWO.getRange(i + 1, wUpdIdx + 1).setValue(timestamp);
+      
+      targetAduId = woData[i][wAduIdx];
+      // update memory untuk pengecekan isAllCompleted di bawah
+      woData[i][wStatIdx] = "Selesai"; 
+      break;
+    }
+  }
+  
+  if (!targetAduId) return { success: false, message: "WO tidak ditemukan." };
+  
+  logActivity(targetAduId, woId, auth.email, auth.role, "WO_COMPLETED", "Diselesaikan. Catatan: " + catatan);
+  
+  // Sinkronisasi status Pengaduan utama
+  var isAllCompleted = true;
+  for (var k = 1; k < woData.length; k++) {
+    if (woData[k][wAduIdx] === targetAduId && woData[k][wStatIdx] !== "Selesai") {
+      isAllCompleted = false;
+      break;
+    }
+  }
+
+  if (isAllCompleted) {
+    var aduData = sheetAdu.getDataRange().getValues();
+    var aIdIdx = findCol(aduData[0], "ID_Pengaduan");
+    var aStatIdx = findCol(aduData[0], "Status_Progress");
+    var aTsIdx = findCol(aduData[0], "Updated_At");
+    var aCatStafIdx = findCol(aduData[0], "Catatan_Staf");
+    
+    for (var j = 1; j < aduData.length; j++) {
+      if (aduData[j][aIdIdx] === targetAduId) {
+        sheetAdu.getRange(j + 1, aStatIdx + 1).setValue("Selesai");
+        sheetAdu.getRange(j + 1, aTsIdx + 1).setValue(timestamp);
+        
+        // Gabungkan catatan-catatan WO menjadi catatan staf final jika masih kosong
+        var finalCatatan = aduData[j][aCatStafIdx];
+        if (!finalCatatan) {
+          finalCatatan = "Pengerjaan Work Order telah diselesaikan dengan catatan berikut:\n- " + catatan;
+          sheetAdu.getRange(j + 1, aCatStafIdx + 1).setValue(finalCatatan);
+        }
+        
+        logActivity(targetAduId, "", "System", "System", "ADU_AUTO_COMPLETED", "Semua WO telah selesai.");
+        
+        var emailUser = aduData[j][findCol(aduData[0], "Email_Pengirim")];
+        var pelapor = aduData[j][findCol(aduData[0], "Nama_Pengirim")];
+        sendStatusUpdateEmail(emailUser, pelapor, targetAduId, "Selesai", finalCatatan);
+        break;
+      }
+    }
+  }
+  
+  return { success: true, message: "Work Order diselesaikan." };
+}
