@@ -1163,11 +1163,88 @@ function openReviewModal(id) {
 
   // Tampilkan Modal overlay
   document.getElementById("reviewModal").style.display = "flex";
+
+  // Muat riwayat aktivitas secara async
+  fetchActivityLog(selectedReport.id);
 }
 
 function closeReviewModal() {
   document.getElementById("reviewModal").style.display = "none";
   selectedReport = null;
+}
+
+// Fetch riwayat aktivitas dari Log_Aktivitas backend
+async function fetchActivityLog(aduId) {
+  const email = sessionStorage.getItem("admin_email");
+  const pass  = sessionStorage.getItem("admin_pass");
+  const loading = document.getElementById("revActivityLoading");
+  const timeline = document.getElementById("revActivityTimeline");
+  const emptyMsg = document.getElementById("revActivityEmpty");
+
+  loading.style.display = "inline";
+  timeline.innerHTML = "";
+
+  try {
+    const response = await fetch(`${API_URL}?action=get_activity_log&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}&aduId=${encodeURIComponent(aduId)}`);
+    const resData  = await response.json();
+
+    if (resData.success && resData.data.length > 0) {
+      renderActivityTimeline(resData.data);
+    } else {
+      timeline.innerHTML = `<p id="revActivityEmpty" style="font-size:0.85rem;color:var(--text-muted);font-style:italic;">Belum ada riwayat aktivitas.</p>`;
+    }
+  } catch (err) {
+    console.error("Gagal memuat riwayat aktivitas:", err);
+    timeline.innerHTML = `<p style="font-size:0.85rem;color:var(--danger);">Gagal memuat riwayat.</p>`;
+  } finally {
+    loading.style.display = "none";
+  }
+}
+
+function renderActivityTimeline(logs) {
+  const timeline = document.getElementById("revActivityTimeline");
+  timeline.innerHTML = "";
+
+  // Label & warna per tipe aksi
+  const aksiMeta = {
+    "STATUS_UPDATED":     { label: "Update Status",         color: "#00a896", icon: "✏️" },
+    "WO_STARTED":         { label: "WO Mulai Dikerjakan",   color: "#f4a261", icon: "▶️" },
+    "WO_COMPLETED":       { label: "WO Selesai",            color: "#2a9d8f", icon: "✅" },
+    "ADU_AUTO_COMPLETED": { label: "Aduan Ditutup Otomatis",color: "#2a9d8f", icon: "🏁" },
+    "WO_CREATED":         { label: "Work Order Dibuat",     color: "#0d233a", icon: "📋" },
+    "BANTAHAN":           { label: "Bantahan Pelapor",      color: "#e76f51", icon: "⚠️" }
+  };
+
+  logs.forEach(log => {
+    const meta = aksiMeta[log.aksi] || { label: log.aksi, color: "#64748b", icon: "📌" };
+    const ts   = log.timestamp ? formatDate(log.timestamp) : "-";
+
+    // Parse detail: pisahkan catatan dari URL bukti
+    let detailHtml = "";
+    if (log.detail) {
+      const parts = log.detail.split(" | ");
+      parts.forEach(part => {
+        if (part.startsWith("Bukti: http")) {
+          const url = part.replace("Bukti: ", "").trim();
+          detailHtml += `<a href="${url}" target="_blank" style="font-size:0.8rem;color:var(--secondary);">📎 Buka Berkas Bukti</a><br>`;
+        } else {
+          detailHtml += `<span style="font-size:0.85rem;color:#374151;">${part}</span><br>`;
+        }
+      });
+    }
+
+    const item = document.createElement("div");
+    item.style.cssText = `border-left: 3px solid ${meta.color}; padding: 8px 12px; background: #f8f9fa; border-radius: 0 6px 6px 0;`;
+    item.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+        <span style="font-size:0.8rem;font-weight:700;color:${meta.color};">${meta.icon} ${meta.label}</span>
+        <span style="font-size:0.75rem;color:#94a3b8;">${ts}</span>
+      </div>
+      <div style="font-size:0.8rem;color:#64748b;margin-bottom:4px;">Oleh: <strong>${log.aktor}</strong> (${log.peran})${log.woId ? ` · WO: ${log.woId}` : ""}</div>
+      <div style="line-height:1.6;">${detailHtml}</div>
+    `;
+    timeline.appendChild(item);
+  });
 }
 
 // Submit Update inside Review Modal
