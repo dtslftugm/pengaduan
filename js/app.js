@@ -1156,6 +1156,16 @@ function openReviewModal(id) {
   
   resetUploadState("uploadRevProgressContainer", "uploadRevStatusText");
 
+  // Tampilkan tombol delegasi WO jika role Supervisor
+  const btnDelegateWO = document.getElementById("btnDelegateWO");
+  if (btnDelegateWO) {
+    if (sessionStorage.getItem("admin_role") === "Supervisor") {
+      btnDelegateWO.style.display = "inline-block";
+    } else {
+      btnDelegateWO.style.display = "none";
+    }
+  }
+
   // Tampilkan Modal overlay
   document.getElementById("reviewModal").style.display = "flex";
 
@@ -1294,6 +1304,126 @@ async function handleReviewUpdateSubmit() {
   } finally {
     btn.disabled = false;
     btn.textContent = "Simpan Perubahan";
+  }
+}
+
+// ==========================================
+// 4.5 WORK ORDER CREATION (SUPERVISOR)
+// ==========================================
+
+function openWOCreateModal() {
+  if (!selectedReport) return;
+  
+  // Tutup review modal sementara
+  document.getElementById("reviewModal").style.display = "none";
+
+  document.getElementById("woCreateAduId").value = selectedReport.id;
+  document.getElementById("woCreateLabelId").textContent = selectedReport.id;
+  
+  document.getElementById("woCreateKategori").value = selectedReport.kategori;
+  document.getElementById("woCreateLabelKategori").textContent = selectedReport.kategori;
+  
+  // Reset fields
+  document.getElementById("woCreateLokasi").value = "";
+  document.getElementById("woCreateDeskripsi").value = "";
+  document.getElementById("woCreatePrioritas").value = "3";
+  
+  document.getElementById("woCreateModal").style.display = "flex";
+  
+  // Load staff
+  fetchStaffListForWO(selectedReport.kategori);
+}
+
+function closeWOCreateModal() {
+  document.getElementById("woCreateModal").style.display = "none";
+  // Kembali ke review modal
+  document.getElementById("reviewModal").style.display = "flex";
+}
+
+async function fetchStaffListForWO(kategori) {
+  const email = sessionStorage.getItem("admin_email");
+  const pass = sessionStorage.getItem("admin_pass");
+  const selectEl = document.getElementById("woCreateAssignee");
+  
+  selectEl.innerHTML = `<option value="" disabled selected>Memuat daftar staf...</option>`;
+  
+  try {
+    const response = await fetch(`${API_URL}?action=get_staff_list&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}&kategori=${encodeURIComponent(kategori)}`);
+    const resData = await response.json();
+    
+    if (resData.success) {
+      selectEl.innerHTML = `<option value="" disabled selected>Pilih Staf Penanggung Jawab</option>`;
+      if (resData.data.length === 0) {
+        selectEl.innerHTML += `<option value="" disabled>Tidak ada staf untuk kategori ini</option>`;
+      } else {
+        resData.data.forEach(staff => {
+          const opt = document.createElement("option");
+          opt.value = staff.email;
+          opt.textContent = `${staff.nama} (${staff.email})`;
+          selectEl.appendChild(opt);
+        });
+      }
+    } else {
+      selectEl.innerHTML = `<option value="" disabled>Gagal memuat staf</option>`;
+    }
+  } catch (err) {
+    console.error("Error fetching staff:", err);
+    selectEl.innerHTML = `<option value="" disabled>Error jaringan</option>`;
+  }
+}
+
+async function submitWOCreate() {
+  const aduId = document.getElementById("woCreateAduId").value;
+  const kategori = document.getElementById("woCreateKategori").value;
+  const lokasi = document.getElementById("woCreateLokasi").value.trim();
+  const deskripsi = document.getElementById("woCreateDeskripsi").value.trim();
+  const assigneeEmail = document.getElementById("woCreateAssignee").value;
+  const prioritas = document.getElementById("woCreatePrioritas").value;
+  
+  if (!assigneeEmail) {
+    alert("Silakan pilih staf penanggung jawab.");
+    return;
+  }
+  
+  const btn = document.getElementById("btnWOCreateSubmit");
+  btn.disabled = true;
+  btn.textContent = "Menyimpan...";
+  
+  const payload = {
+    action: "create_work_order",
+    email: sessionStorage.getItem("admin_email"),
+    password: sessionStorage.getItem("admin_pass"),
+    aduId: aduId,
+    kategori: kategori,
+    lokasi: lokasi,
+    deskripsi: deskripsi,
+    assigneeEmail: assigneeEmail,
+    prioritas: prioritas
+  };
+  
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    const resData = await response.json();
+    
+    if (resData.success) {
+      alert("Work Order berhasil dibuat dan didelegasikan!");
+      document.getElementById("woCreateModal").style.display = "none";
+      selectedReport = null;
+      // Berpindah ke tab WO
+      if (typeof switchTab === 'function') switchTab('wo');
+      if (typeof fetchWorkOrdersList === 'function') fetchWorkOrdersList();
+    } else {
+      alert("Gagal membuat WO: " + resData.message);
+    }
+  } catch (err) {
+    console.error("Error creating WO:", err);
+    alert("Terjadi kesalahan saat memproses pembuatan WO.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Buat & Tugaskan";
   }
 }
 
