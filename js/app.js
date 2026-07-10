@@ -773,7 +773,7 @@ async function handleLoginSubmit() {
   btn.textContent = "Memverifikasi...";
 
   try {
-    const response = await fetch(`${API_URL}?action=verify_staff&email=${email}&password=${pass}`);
+    const response = await fetch(`${API_URL}?action=verify_staff&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
     const resData = await response.json();
 
     if (resData.success) {
@@ -848,7 +848,7 @@ async function fetchReportsList() {
   tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 30px;">Memuat data aduan...</td></tr>`;
 
   try {
-    const response = await fetch(`${API_URL}?action=get_all_reports&email=${email}&password=${pass}`);
+    const response = await fetch(`${API_URL}?action=get_all_reports&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
     const resData = await response.json();
 
     if (resData.success) {
@@ -860,6 +860,11 @@ async function fetchReportsList() {
         fetchSupervisorStats();
       }
     } else {
+      if (resData.message && (resData.message.includes("Kredensial") || resData.message.includes("Autentikasi") || resData.message.includes("Akses ditolak"))) {
+        alert("Sesi telah berakhir atau kredensial tidak valid. Silakan login kembali.");
+        handleLogout();
+        return;
+      }
       tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 30px;">Gagal memuat data: ${resData.message}</td></tr>`;
     }
   } catch (err) {
@@ -960,10 +965,15 @@ async function fetchSupervisorStats() {
   const pass = sessionStorage.getItem("admin_pass");
 
   try {
-    const response = await fetch(`${API_URL}?action=get_stats&email=${email}&password=${pass}`);
+    const response = await fetch(`${API_URL}?action=get_stats&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
     const resData = await response.json();
 
-    if (!resData.success) return;
+    if (!resData.success) {
+      if (resData.message && (resData.message.includes("Kredensial") || resData.message.includes("Autentikasi") || resData.message.includes("Akses ditolak"))) {
+        handleLogout();
+      }
+      return;
+    }
     const stats = resData.data;
 
     // ── Core Aduan KPI Cards ─────────────────────────────
@@ -1316,7 +1326,7 @@ async function fetchWorkOrdersList() {
   container.innerHTML = `<div style="text-align: center; color: #64748b; padding: 30px;">Memuat data penugasan...</div>`;
 
   try {
-    const response = await fetch(`${API_URL}?action=get_work_orders&email=${email}&password=${pass}`);
+    const response = await fetch(`${API_URL}?action=get_work_orders&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}`);
     const resData = await response.json();
 
     if (resData.success) {
@@ -1325,6 +1335,11 @@ async function fetchWorkOrdersList() {
       allWorkOrders.sort((a, b) => parseInt(a.Prioritas || 99) - parseInt(b.Prioritas || 99));
       renderWorkOrders();
     } else {
+      if (resData.message && (resData.message.includes("Kredensial") || resData.message.includes("Autentikasi") || resData.message.includes("Akses ditolak"))) {
+        alert("Sesi telah berakhir atau kredensial tidak valid. Silakan login kembali.");
+        handleLogout();
+        return;
+      }
       container.innerHTML = `<div style="text-align: center; color: var(--danger); padding: 30px;">Gagal memuat WO: ${resData.message}</div>`;
     }
   } catch (err) {
