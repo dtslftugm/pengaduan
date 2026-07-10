@@ -1134,22 +1134,7 @@ function openReviewModal(id) {
     rebuttalBox.style.display = "none";
   }
 
-  // Previous responses display (if status is already updated once)
-  const prevBox = document.getElementById("revPrevResponseBox");
-  if (selectedReport.catatanStaf) {
-    document.getElementById("revPrevCatatan").textContent = selectedReport.catatanStaf;
-    const prevFileRow = document.getElementById("revPrevFileRow");
-    if (selectedReport.fileBuktiStafUrl) {
-      document.getElementById("revPrevFileLink").href = selectedReport.fileBuktiStafUrl;
-      prevFileRow.style.display = "flex";
-    } else {
-      prevFileRow.style.display = "none";
-    }
-    prevBox.style.display = "block";
-  } else {
-    prevBox.style.display = "none";
-  }
-
+  // Riwayat Aktivitas akan dimuat secara async oleh fetchActivityLog di bawah
   // ── Pre-fill Form (Status & Catatan) ────────────────
   // Petakan status yang tidak ada di dropdown ke nilai yang paling logis
   const statusMap = {
