@@ -12,6 +12,7 @@ let uploadedFile = {
   mimeType: "",
   name: ""
 };
+let uploadedFiles = []; // For multiple files
 let isUploadActive = true; // true = upload file, false = paste link
 
 // Helper: Format string nomor telepon agar selalu diawali 0 untuk disimpan ke sheet
@@ -176,7 +177,11 @@ function setupDropzone(dropzoneId, fileInputId, progressBarId, progressContainer
   dropzone.addEventListener("click", () => fileInput.click());
 
   fileInput.addEventListener("change", (e) => {
-    handleFileProcess(e.target.files[0], progressBarId, progressContainerId, statusTextId, retryBtnId);
+    if (fileInput.multiple) {
+      handleMultipleFileProcess(e.target.files, progressBarId, progressContainerId, statusTextId, retryBtnId);
+    } else {
+      handleFileProcess(e.target.files[0], progressBarId, progressContainerId, statusTextId, retryBtnId);
+    }
   });
 
   dropzone.addEventListener("dragover", (e) => {
@@ -196,9 +201,83 @@ function setupDropzone(dropzoneId, fileInputId, progressBarId, progressContainer
     dropzone.style.backgroundColor = "#fafbfc";
     if (e.dataTransfer.files.length > 0) {
       fileInput.files = e.dataTransfer.files;
-      handleFileProcess(e.dataTransfer.files[0], progressBarId, progressContainerId, statusTextId, retryBtnId);
+      if (fileInput.multiple) {
+        handleMultipleFileProcess(e.dataTransfer.files, progressBarId, progressContainerId, statusTextId, retryBtnId);
+      } else {
+        handleFileProcess(e.dataTransfer.files[0], progressBarId, progressContainerId, statusTextId, retryBtnId);
+      }
     }
   });
+}
+
+// Handler Pemrosesan Multiple File Masuk
+async function handleMultipleFileProcess(files, progressBarId, progressContainerId, statusTextId, retryBtnId) {
+  const container = document.getElementById(progressContainerId);
+  const bar = document.getElementById(progressBarId);
+  const text = document.getElementById(statusTextId);
+  const retry = document.getElementById(retryBtnId);
+
+  if (!files || files.length === 0) return;
+
+  if (files.length > 5) {
+    alert("Maksimal 5 berkas yang diperbolehkan.");
+    return;
+  }
+
+  uploadedFiles = [];
+  container.style.display = "block";
+  text.style.display = "flex";
+  retry.style.display = "none";
+  bar.style.width = "0%";
+  bar.style.backgroundColor = "var(--primary)";
+
+  let totalFiles = files.length;
+  let processedFiles = 0;
+  let hasError = false;
+
+  for (let i = 0; i < totalFiles; i++) {
+    const file = files[i];
+    text.querySelector("span").textContent = `Memproses file ${i+1}/${totalFiles}: ${file.name}...`;
+
+    try {
+      let finalData = "";
+      if (file.type.startsWith("image/")) {
+        finalData = await compressImage(file);
+      } else {
+        finalData = await fileToBase64(file);
+      }
+
+      // Hitung approx size dari base64: length * 3 / 4
+      const approxSize = (finalData.length * 3) / 4;
+      if (approxSize > 3 * 1024 * 1024) {
+        alert(`Berkas "${file.name}" melebihi 3MB setelah dikompres. Harap pilih berkas lain yang lebih kecil.`);
+        hasError = true;
+        break;
+      }
+
+      uploadedFiles.push({
+        data: finalData,
+        mimeType: file.type,
+        name: file.name
+      });
+      processedFiles++;
+      bar.style.width = `${(processedFiles / totalFiles) * 100}%`;
+    } catch (err) {
+      console.error(err);
+      hasError = true;
+      break;
+    }
+  }
+
+  if (hasError) {
+    bar.style.backgroundColor = "var(--danger)";
+    text.querySelector("span").textContent = "Gagal memproses beberapa berkas.";
+    retry.style.display = "block";
+    retry.onclick = () => handleMultipleFileProcess(files, progressBarId, progressContainerId, statusTextId, retryBtnId);
+  } else {
+    bar.style.width = "100%";
+    text.querySelector("span").textContent = `Selesai memproses ${totalFiles} berkas. (Siap dikirim)`;
+  }
 }
 
 // Setup toggle Lampiran File vs Tempel Link
@@ -275,10 +354,11 @@ function initIndexPage() {
     };
 
     // Tambahkan file jika upload aktif dan data siap
-    if (isUploadActive && uploadedFile.data) {
-      payload.fileData = uploadedFile.data;
-      payload.fileMimeType = uploadedFile.mimeType;
-      payload.fileName = uploadedFile.name;
+    if (isUploadActive && uploadedFiles.length > 0) {
+      payload.files = uploadedFiles;
+    } else if (isUploadActive && uploadedFile.data) {
+      // Fallback fallback untuk single file jika karena suatu hal `uploadedFiles` kosong
+      payload.files = [uploadedFile];
     } else if (!isUploadActive) {
       // Jika tempel link aktif
       payload.fileLinkUrl = document.getElementById("fileLinkUrl").value;
