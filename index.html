@@ -151,7 +151,7 @@
 
             <!-- Toggle between upload and link -->
             <div class="attachment-toggle">
-              <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 3MB)</button>
+              <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 5 Foto/File)</button>
               <button type="button" class="toggle-btn" id="btnToggleLink">Tempel Link Dokumen</button>
             </div>
 
@@ -159,10 +159,9 @@
             <div id="uploadContainer">
               <div class="upload-area" id="dropzone">
                 <div class="upload-icon">📁</div>
-                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk membuka
-                    kamera/galeri</strong></span>
-                <span class="upload-limit">Format yang didukung: JPG, PNG, PDF, DOC, DOCX. Maksimal 3MB.</span>
-                <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx" style="display: none;">
+                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk mencari galeri</strong></span>
+                <span class="upload-limit">Format: JPG, PNG, PDF. <strong>Maksimal 5 berkas.</strong><br><em>Sistem otomatis mengompres (resize) foto resolusi tinggi dari HP Anda agar lebih ringan.</em></span>
+                <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx" multiple style="display: none;">
               </div>
 
               <!-- Progress indicator -->

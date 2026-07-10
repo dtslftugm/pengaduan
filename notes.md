@@ -51,6 +51,12 @@ Dokumen ini mencatat riwayat pengembangan, status fitur, bug yang ditemukan, sol
   * *Solusi*: Mengganti penggunaan indeks array statik (seperti `row[0]`, `row[14]`) dengan helper `findCol(headers, targetName)` di seluruh file `Code.gs` dan `Setup.gs`. Fungsi ini melakukan sanitasi dengan `trim()` dan `toLowerCase()` untuk mencegah gagal deteksi karena spasi atau perbedaan huruf besar/kecil.
   * *Syntax*: `findCol(headers_array, "Nama_Kolom")`
   * *Return*: Mengembalikan integer index (0-based) dari posisi kolom yang dicari. Jika tidak ditemukan, akan mengembalikan `-1`.
+* **[FITUR] Pembuatan Penugasan (Work Order) UI & Backend**: Fitur pendelegasian Work Order (WO) yang dulunya murni berbasis data backend kini diintegrasikan ke panel UI Supervisor.
+  * *Solusi Frontend*: Menambahkan form modal baru `woCreateModal` pada `admin.html`. Tombol "Buat Penugasan (WO)" pada review modal dibuat hanya tampil jika `sessionStorage.getItem("admin_role") === "Supervisor"`. Logika form disiapkan pada `js/app.js` melalui fungsi `submitWOCreate()` yang langsung mengalihkan view ke tab Kanban/WO setelah berhasil.
+  * *Solusi Backend*: Menambahkan endpoint GET baru `action=get_staff_list` pada `Code.gs`. Endpoint ini digunakan oleh frontend (melalui `fetchStaffListForWO()`) untuk mengambil opsi *dropdown* nama staf yang sesuai dengan Kategori aduan, guna mencegah kesalahan ketik (typo) saat mengisi *Assignee Email*.
+* **[UX] Relaksasi Limit Upload & Multi-File**: Mengizinkan pengunggahan hingga 5 foto beresolusi tinggi (contoh dari iPhone) tanpa langsung ditolak oleh limit 3MB.
+  * *Solusi Frontend*: Menambahkan atribut `multiple` pada input file di `index.html`. Mengganti logika `handleFileProcess` di `app.js` menjadi `handleMultipleFileProcess` yang me-loop setiap file yang dipilih, melakukan `compressImage()` di klien, dan membatasi ukuran <3MB per file *hanya setelah kompresi selesai*. File yang lolos dimasukkan ke array `uploadedFiles`.
+  * *Solusi Backend*: Memodifikasi fungsi `submitPengaduanAction` di `Code.gs` untuk mendeteksi `params.files` (array), kemudian mengulang fungsi upload `uploadFileToDrive` per file, lalu menyatukan semua URL yang dihasilkan menggunakan koma (`, `) untuk dimasukkan ke dalam Google Sheet di satu sel.
 
 
 ---

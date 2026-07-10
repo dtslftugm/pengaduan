@@ -274,11 +274,24 @@ function submitPengaduanAction(params) {
   
   // Proses Lampiran File (jika ada file base64)
   var fileUrl = "";
-  if (params.fileData && params.fileMimeType && params.fileName) {
-    // Validasi ukuran file (jika dikirim mentah, tapi idealnya dibatasi di client juga)
-    // base64 size = approx 4/3 of binary size
+  if (params.files && params.files.length > 0) {
+    var urls = [];
+    for (var f = 0; f < params.files.length; f++) {
+      var fileObj = params.files[f];
+      if (fileObj.data && fileObj.mimeType && fileObj.name) {
+        var approxSize = (fileObj.data.length * 3) / 4;
+        if (approxSize > 3.5 * 1024 * 1024) { // Toleransi 3.5MB per file setelah kompres
+          return { success: false, message: "Ukuran file " + fileObj.name + " melebihi batas 3MB." };
+        }
+        var url = uploadFileToDrive(fileObj.data, fileObj.mimeType, fileObj.name, id, "pelapor");
+        urls.push(url);
+      }
+    }
+    fileUrl = urls.join(", ");
+  } else if (params.fileData && params.fileMimeType && params.fileName) {
+    // Fallback kompatibilitas (Single file)
     var approxSize = (params.fileData.length * 3) / 4;
-    if (approxSize > 3 * 1024 * 1024) { // 3 MB
+    if (approxSize > 3.5 * 1024 * 1024) {
       return { success: false, message: "Ukuran file lampiran melebihi batas 3MB." };
     }
     fileUrl = uploadFileToDrive(params.fileData, params.fileMimeType, params.fileName, id, "pelapor");
@@ -458,14 +471,26 @@ function authenticateUser(email, password, kategoriRequired) {
     var uRole = data[i][roleIdx];
     var uKategori = data[i][katIdx];
     
-    if (uEmail && uPass && uEmail.toString().toLowerCase() === email.toString().toLowerCase() && uPass.toString() === password.toString()) {
-      if (uRole === "Supervisor") {
-        return { authorized: true, role: "Supervisor", nama: uNama };
+    var uEmailStr = uEmail ? uEmail.toString().toLowerCase().trim() : "";
+    var emailStr = email ? email.toString().toLowerCase().trim() : "";
+    // Jika frontend tidak menggunakan encodeURIComponent, karakter '+' akan diterima sebagai spasi ' '
+    var emailStrFallback = emailStr.replace(/ /g, '+');
+    
+    var uPassStr = uPass ? uPass.toString().trim() : "";
+    var passStr = password ? password.toString().trim() : "";
+
+    if (uEmailStr && uPassStr && (uEmailStr === emailStr || uEmailStr === emailStrFallback) && uPassStr === passStr) {
+      var uRoleStr = uRole ? uRole.toString().trim() : "";
+      var uKatStr = uKategori ? uKategori.toString().trim() : "";
+      
+      if (uRoleStr === "Supervisor") {
+        return { authorized: true, role: "Supervisor", nama: uNama, kategori: uKatStr };
       }
-      if (uRole === "Staff") {
+      if (uRoleStr === "Staff") {
         // Jika kategoriRequired kosong, staff dianggap authorized untuk keperluan login general
-        if (!kategoriRequired || uKategori === kategoriRequired) {
-          return { authorized: true, role: "Staff", nama: uNama };
+        var reqKatStr = kategoriRequired ? kategoriRequired.toString().trim() : "";
+        if (!reqKatStr || uKatStr === reqKatStr) {
+          return { authorized: true, role: "Staff", nama: uNama, kategori: uKatStr };
         }
       }
     }
@@ -566,6 +591,12 @@ function updateStatusAction(params) {
   sheet.getRange(rowIndex, catatanStafIdx + 1).setValue(catatanStaf);
   sheet.getRange(rowIndex, fileBuktiStafUrlIdx + 1).setValue(fileBuktiUrl);
   sheet.getRange(rowIndex, updatedAtIdx + 1).setValue(now);
+  
+  // Catat ke Log_Aktivitas agar catatan staf dapat diakses oleh semua pihak
+  var detailLog = "Status → " + newStatus;
+  if (catatanStaf) detailLog += " | Catatan: " + catatanStaf;
+  if (fileBuktiUrl) detailLog += " | Bukti: " + fileBuktiUrl;
+  logActivity(id, "", actorName, isAuthorized ? (email ? "Staff" : "Staf Token") : "Unknown", "STATUS_UPDATED", detailLog);
   
   // Kirim email notifikasi ke Pengirim tentang update status
   sendStatusUpdateEmail(id, namaPengirim, emailPengirim, newStatus, catatanStaf, fileBuktiUrl, dbToken);
@@ -772,6 +803,10 @@ function doGet(e) {
       result = getStatsAction(e.parameter);
     } else if (action === "get_work_orders") {
       result = getWorkOrdersAction(e.parameter);
+    } else if (action === "get_activity_log") {
+      result = getActivityLogAction(e.parameter);
+    } else if (action === "get_staff_list") {
+      result = getStaffListAction(e.parameter);
     } else {
       result.message = "Aksi GET tidak dikenal.";
     }
@@ -782,6 +817,71 @@ function doGet(e) {
   
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Aksi GET: Mengambil riwayat aktivitas (Log_Aktivitas) untuk satu ADU_ID
+function getActivityLogAction(params) {
+  var email    = params.email;
+  var password = params.password;
+  var aduId    = params.aduId;
+
+  if (!email || !password) return { success: false, message: "Autentikasi diperlukan." };
+  if (!aduId)              return { success: false, message: "aduId wajib diisi." };
+
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized) return { success: false, message: "Kredensial tidak valid." };
+
+  var ss    = getSpreadsheet();
+  var sheet = ss.getSheetByName("Log_Aktivitas");
+  if (!sheet) return { success: false, message: "Sheet Log_Aktivitas tidak ditemukan." };
+
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, data: [] };
+
+  var headers   = data[0];
+  var logIdIdx  = findCol(headers, "Log_ID");
+  var aduIdx    = findCol(headers, "ADU_ID");
+  var woIdx     = findCol(headers, "WO_ID");
+  var tsIdx     = findCol(headers, "Timestamp");
+  var aktorIdx  = findCol(headers, "Aktor");
+  var peranIdx  = findCol(headers, "Peran");
+  var aksiIdx   = findCol(headers, "Aksi");
+  var detailIdx = findCol(headers, "Detail");
+
+  // Tipe aksi yang relevan untuk ditampilkan di dashboard (bukan aksi teknis internal)
+  var userFacingActions = {
+    "STATUS_UPDATED":    true,
+    "WO_STARTED":        true,
+    "WO_COMPLETED":      true,
+    "ADU_AUTO_COMPLETED":true,
+    "WO_CREATED":        true,
+    "BANTAHAN":          true
+  };
+
+  var logs = [];
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    if (row[aduIdx] !== aduId) continue;
+    var aksi = row[aksiIdx];
+    if (!userFacingActions[aksi]) continue;
+
+    logs.push({
+      logId:     row[logIdIdx],
+      woId:      row[woIdx]     || "",
+      timestamp: row[tsIdx],
+      aktor:     row[aktorIdx]  || "-",
+      peran:     row[peranIdx]  || "-",
+      aksi:      aksi,
+      detail:    row[detailIdx] || ""
+    });
+  }
+
+  // Urutkan dari yang terbaru
+  logs.sort(function(a, b) {
+    return new Date(b.timestamp) - new Date(a.timestamp);
+  });
+
+  return { success: true, data: logs };
 }
 
 // Aksi GET: Mengambil status detail untuk Pengirim
@@ -1225,8 +1325,8 @@ function createWorkOrderAction(params) {
   
   if (!sheetWO || !sheetAduan) return { success: false, message: "Sheet tidak ditemukan." };
   
-  var auth = authenticateUser(params.email, params.token);
-  if (!auth) return { success: false, message: "Akses ditolak. Token tidak valid." };
+  var auth = authenticateUser(params.email, params.password, "");
+  if (!auth.authorized) return { success: false, message: "Akses ditolak. Kredensial tidak valid." };
   if (auth.role !== "Supervisor" && auth.role !== "Staff") {
     return { success: false, message: "Akses ditolak. Peran Anda tidak diizinkan." };
   }
@@ -1310,10 +1410,10 @@ function createWorkOrderAction(params) {
 function getWorkOrdersAction(params) {
   var id = params.id; 
   var email = params.email;
-  var token = params.token;
+  var password = params.password;
   
-  var auth = authenticateUser(email, token);
-  if (!auth) return { success: false, message: "Akses ditolak." };
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized) return { success: false, message: "Akses ditolak." };
   
   var ss = getSpreadsheet();
   var sheet = ss.getSheetByName("WorkOrder");
@@ -1349,11 +1449,11 @@ function getWorkOrdersAction(params) {
 // Aksi POST: Memperbarui Prioritas Work Order secara masal (bulk)
 function updateWOPriorityAction(params) {
   var email = params.email;
-  var token = params.token;
+  var password = params.password;
   var updates = params.updates; // array of {woId, prioritas}
   
-  var auth = authenticateUser(email, token);
-  if (!auth) return { success: false, message: "Akses ditolak." };
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized) return { success: false, message: "Akses ditolak." };
   
   if (!updates || !Array.isArray(updates)) {
     return { success: false, message: "Data updates tidak valid." };
@@ -1403,11 +1503,11 @@ function updateWOPriorityAction(params) {
 // Aksi POST: PIC mulai mengerjakan WO
 function startWorkOrderAction(params) {
   var email = params.email;
-  var token = params.token;
+  var password = params.password;
   var woId = params.woId;
   
-  var auth = authenticateUser(email, token);
-  if (!auth) return { success: false, message: "Akses ditolak." };
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized) return { success: false, message: "Akses ditolak." };
   
   var ss = getSpreadsheet();
   var sheetWO = ss.getSheetByName("WorkOrder");
@@ -1463,12 +1563,12 @@ function startWorkOrderAction(params) {
 // Aksi POST: PIC menyelesaikan WO beserta bukti
 function completeWorkOrderAction(params) {
   var email = params.email;
-  var token = params.token;
+  var password = params.password;
   var woId = params.woId;
   var catatan = params.catatanProgress;
   
-  var auth = authenticateUser(email, token);
-  if (!auth) return { success: false, message: "Akses ditolak." };
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized) return { success: false, message: "Akses ditolak." };
   
   var ss = getSpreadsheet();
   var sheetWO = ss.getSheetByName("WorkOrder");
@@ -1569,4 +1669,45 @@ function completeWorkOrderAction(params) {
   }
   
   return { success: true, message: "Work Order diselesaikan." };
+}
+
+// Aksi GET: Mengambil daftar staf untuk dropdown Assignee
+function getStaffListAction(params) {
+  var email = params.email;
+  var password = params.password;
+  var kategori = params.kategori;
+  
+  var auth = authenticateUser(email, password, "");
+  if (!auth.authorized || auth.role !== "Supervisor") {
+    return { success: false, message: "Akses ditolak. Hanya Supervisor yang dapat melihat daftar staf." };
+  }
+  
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName("Users");
+  if (!sheet) return { success: false, message: "Sheet Users tidak ditemukan." };
+  
+  var data = sheet.getDataRange().getValues();
+  if (data.length < 2) return { success: true, data: [] };
+  
+  var headers = data[0];
+  var emailIdx = findCol(headers, "Email");
+  var namaIdx = findCol(headers, "Nama");
+  var roleIdx = findCol(headers, "Role");
+  var katIdx = findCol(headers, "Kategori_Layanan");
+  
+  var staffList = [];
+  for (var i = 1; i < data.length; i++) {
+    var rowRole = data[i][roleIdx];
+    var rowKat = data[i][katIdx];
+    
+    // Memasukkan Staf yang kategorinya cocok
+    if (rowRole === "Staff" && (!kategori || rowKat === kategori)) {
+      staffList.push({
+        email: data[i][emailIdx],
+        nama: data[i][namaIdx]
+      });
+    }
+  }
+  
+  return { success: true, data: staffList };
 }
