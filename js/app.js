@@ -909,15 +909,43 @@ async function fetchQuickReport(id, token) {
 
       const badge = document.getElementById("quickStatusBadge");
       badge.textContent = data.statusProgress;
-      badge.className = `badge badge-${data.statusProgress.toLowerCase()}`;
+      badge.className = "badge badge-" + data.statusProgress.toLowerCase();
 
       if (data.fileLampiranUrl) {
         document.getElementById("quickFileLink").href = data.fileLampiranUrl;
         document.getElementById("quickFileRow").style.display = "flex";
       }
 
-      // Tampilkan info jika ini bantahan
-      if (data.statusProgress === "Bantahan") {
+      // Tampilkan catatan staf & bukti yang sudah tersimpan sebelumnya
+      const stafBox = document.getElementById("quickStafResponseBox");
+      if (data.catatanStaf) {
+        document.getElementById("quickCatatanStaf").textContent = data.catatanStaf;
+        if (data.fileBuktiStafUrl) {
+          document.getElementById("quickBuktiStafLink").href = data.fileBuktiStafUrl;
+          document.getElementById("quickBuktiStafRow").style.display = "flex";
+        }
+        stafBox.style.display = "block";
+      } else {
+        stafBox.style.display = "none";
+      }
+
+      // Pre-fill form dengan status terkini agar staf tidak salah pilih
+      const statusMap = {
+        "Pending":   "Diproses",
+        "Diproses":  "Diproses",
+        "Bantahan":  "Diproses",
+        "Selesai":   "Selesai",
+        "Ditolak":   "Ditolak"
+      };
+      document.getElementById("quickNewStatus").value = statusMap[data.statusProgress] || "Diproses";
+
+      // Pre-fill textarea catatan staf sebelumnya
+      if (data.catatanStaf) {
+        document.getElementById("quickCatatan").value = data.catatanStaf;
+      }
+
+      // Tampilkan info bantahan jika ada
+      if (data.catatanBantahan) {
         document.getElementById("quickAlasanBantahan").textContent = data.catatanBantahan;
         if (data.fileBantahanUrl) {
           document.getElementById("quickBantahanFileLink").href = data.fileBantahanUrl;
@@ -927,7 +955,7 @@ async function fetchQuickReport(id, token) {
       }
     } else {
       alert("Akses token tidak valid atau kadaluarsa: " + resData.message);
-      document.getElementById("quickActionPanel").innerHTML = `<div class="card-wrapper" style="text-align:center; color:var(--danger);"><h3>Error: Akses Ditolak</h3><p>${resData.message}</p></div>`;
+      document.getElementById("quickActionPanel").innerHTML = '<div class="card-wrapper" style="text-align:center; color:var(--danger);"><h3>Error: Akses Ditolak</h3><p>' + resData.message + '</p></div>';
     }
   } catch (err) {
     console.error(err);

@@ -92,6 +92,19 @@
             <div class="detail-value"><a href="#" id="quickFileLink" target="_blank" class="disclaimer-link">Buka Berkas Lampiran 📁</a></div>
           </div>
 
+          <!-- Previously saved staff response (shown if already updated) -->
+          <div id="quickStafResponseBox" style="display: none; background-color: rgba(0,168,150,0.04); padding: 16px; border-radius: var(--border-radius-sm); border: 1.5px solid rgba(0,168,150,0.25); margin-top: 20px;">
+            <span class="detail-title" style="color: var(--secondary); font-size: 1rem; display: block; margin-bottom: 8px;">✅ Riwayat Penanganan Staf Terakhir</span>
+            <div class="detail-row">
+              <div class="detail-label">Catatan Staf:</div>
+              <div class="detail-value" style="font-style: italic; white-space: pre-line;" id="quickCatatanStaf">-</div>
+            </div>
+            <div class="detail-row" id="quickBuktiStafRow" style="display: none;">
+              <div class="detail-label">Berkas Bukti:</div>
+              <div class="detail-value"><a href="#" id="quickBuktiStafLink" target="_blank" class="disclaimer-link">Buka Berkas Bukti Penyelesaian 📁</a></div>
+            </div>
+          </div>
+
           <!-- If Rebuttal exists -->
           <div id="quickRebuttalBox" style="display: none; background-color: #fff1f2; padding: 16px; border-radius: var(--border-radius-sm); border: 1.5px solid rgba(225, 29, 72, 0.2); margin-top: 20px;">
             <span class="detail-title" style="color: var(--danger); font-size: 1rem; display: block; margin-bottom: 8px;">⚠️ Detail Sanggahan Pelapor (Bantahan)</span>
