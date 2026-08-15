@@ -129,11 +129,11 @@
               <div>
                 <label for="lokasiLaporan" style="margin-bottom: 8px;">Lokasi Laporan (Gedung/Area) *</label>
                 <input type="text" id="lokasiLaporan" name="lokasiLaporan"
-                  placeholder="Contoh: Gedung A, Area Parkir, Kantin">
+                  placeholder="Contoh: Gedung B Lt.4, Area Parkir, Kantin">
               </div>
               <div>
                 <label for="subLokasi" style="margin-bottom: 8px;">Sub-Lokasi / Nomor Ruangan (Opsional)</label>
-                <input type="text" id="subLokasi" name="subLokasi" placeholder="Contoh: Lantai 3, Ruang 307">
+                <input type="text" id="subLokasi" name="subLokasi" placeholder="Contoh: Gedung A Lantai 3, Ruang 307">
               </div>
             </div>
           </div>
@@ -147,11 +147,12 @@
 
           <!-- File / Link Lampiran -->
           <div class="form-group full-width">
-            <label>Berkas Lampiran Pendukung (Foto / Dokumen)</label>
+            <label>Berkas Lampiran Pendukung (Foto / Video / Dokumen)</label>
 
             <!-- Toggle between upload and link -->
             <div class="attachment-toggle">
-              <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 5 Foto/File)</button>
+              <button type="button" class="toggle-btn active" id="btnToggleUpload">Unggah Berkas (Maks 5
+                Foto/Video/Dokumen)</button>
               <button type="button" class="toggle-btn" id="btnToggleLink">Tempel Link Dokumen</button>
             </div>
 
@@ -159,9 +160,12 @@
             <div id="uploadContainer">
               <div class="upload-area" id="dropzone">
                 <div class="upload-icon">📁</div>
-                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk mencari galeri</strong></span>
-                <span class="upload-limit">Format: JPG, PNG, PDF. <strong>Maksimal 5 berkas.</strong><br><em>Sistem otomatis mengompres (resize) foto resolusi tinggi dari HP Anda agar lebih ringan.</em></span>
-                <input type="file" id="fileInput" accept="image/*,application/pdf,.doc,.docx" multiple style="display: none;">
+                <span class="upload-text">Tarik berkas ke sini atau <strong>klik untuk mencari di galeri</strong></span>
+                <span class="upload-limit">Format: Foto, Video, PDF, Dokumen. <strong>Maksimal 5 berkas (Total maks 30MB
+                    untuk Video, 3MB untuk Berkas Lain).</strong><br><em>Sistem otomatis mengompres (resize) foto
+                    resolusi tinggi dari HP Anda agar lebih ringan. Video maks. ~20 detik Full HD.</em></span>
+                <input type="file" id="fileInput" accept="image/*,video/*,application/pdf" multiple
+                  style="display: none;">
               </div>
 
               <!-- Progress indicator -->
@@ -198,7 +202,8 @@
     <div class="success-card">
       <div class="success-icon">✓</div>
       <h2>Laporan Berhasil Terkirim</h2>
-      <p>Terima kasih atas aspirasi Anda. Sistem telah merekam laporan dan mengirimkan tanda terima ke email Anda.</p>
+      <p>Terima kasih atas aspirasi Anda. Sistem telah merekam laporan dan mengirimkan tanda terima ke email Anda. Yang
+        selanjutnya dapat digunakan untuk memantau progress laporan Anda.</p>
 
       <div class="info-box">
         <div class="info-item">

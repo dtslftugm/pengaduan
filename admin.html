@@ -124,7 +124,7 @@
           </div>
 
           <div class="form-group">
-            <label>Unggah Berkas Bukti Penyelesaian (Opsional untuk Diproses, Wajib/Sangat Dianjurkan untuk Selesai/Ditolak. Maks 3MB)</label>
+            <label>Unggah Berkas Bukti Penyelesaian (Opsional untuk Diproses, Wajib/Sangat Dianjurkan untuk Selesai/Ditolak. Maks 30MB untuk Video (~20 detik FHD), 3MB untuk Berkas Lain)</label>
             
             <div class="attachment-toggle">
               <button type="button" class="toggle-btn active" id="btnToggleQuickUpload">Unggah Berkas</button>
@@ -135,8 +135,8 @@
             <div id="uploadQuickContainer">
               <div class="upload-area" id="dropzoneQuick">
                 <div class="upload-icon">📁</div>
-                <span class="upload-text">Klik untuk mengunggah bukti penyelesaian</span>
-                <input type="file" id="fileQuickInput" accept="image/*,application/pdf" style="display: none;">
+                <span class="upload-text">Klik untuk mengambil foto/video/mengunggah bukti</span>
+                <input type="file" id="fileQuickInput" accept="image/*,video/*,application/pdf" style="display: none;">
               </div>
               <div class="progress-container" id="uploadQuickProgressContainer">
                 <div class="progress-bar" id="uploadQuickProgressBar"></div>
@@ -425,7 +425,7 @@
           </div>
 
           <div class="form-group full-width" style="margin-bottom: 0;">
-            <label>Unggah Berkas Bukti Penyelesaian (Maks 3MB)</label>
+            <label>Unggah Berkas Bukti Penyelesaian (Maks 30MB untuk Video (~20 detik FHD), 3MB untuk Berkas Lain)</label>
             <div class="attachment-toggle">
               <button type="button" class="toggle-btn active" id="btnToggleRevUpload">Unggah Berkas</button>
               <button type="button" class="toggle-btn" id="btnToggleRevLink">Tempel Link Dokumen</button>
@@ -434,8 +434,8 @@
             <div id="uploadRevContainer">
               <div class="upload-area" id="dropzoneRev" style="padding: 20px;">
                 <div class="upload-icon" style="font-size: 1.5rem; margin-bottom: 4px;">📁</div>
-                <span class="upload-text">Klik untuk unggah bukti</span>
-                <input type="file" id="fileRevInput" accept="image/*,application/pdf" style="display: none;">
+                <span class="upload-text">Klik untuk mengambil foto/video/mengunggah bukti</span>
+                <input type="file" id="fileRevInput" accept="image/*,video/*,application/pdf" style="display: none;">
               </div>
               <div class="progress-container" id="uploadRevProgressContainer">
                 <div class="progress-bar" id="uploadRevProgressBar"></div>
@@ -482,7 +482,7 @@
         </div>
 
         <div class="form-group full-width" style="margin-bottom: 0;">
-          <label>Unggah Bukti Pengerjaan (Maks 3MB)</label>
+          <label>Unggah Bukti Pengerjaan (Maks 30MB untuk Video (~20 detik FHD), 3MB untuk Berkas Lain)</label>
           <div class="attachment-toggle" style="margin-bottom: 8px;">
             <button type="button" class="toggle-btn active" id="btnToggleWOUpload">Unggah Berkas</button>
             <button type="button" class="toggle-btn" id="btnToggleWOLink">Tempel Link Dokumen</button>
@@ -491,8 +491,8 @@
           <div id="uploadWOContainer">
             <div class="upload-area" id="dropzoneWO" style="padding: 15px;">
               <div class="upload-icon" style="font-size: 1.2rem; margin-bottom: 4px;">📁</div>
-              <span class="upload-text" style="font-size: 0.85rem;">Klik untuk unggah foto/dokumen bukti</span>
-              <input type="file" id="fileWOInput" accept="image/*,application/pdf" style="display: none;">
+              <span class="upload-text" style="font-size: 0.85rem;">Klik untuk mengambil foto/video/mengunggah bukti</span>
+              <input type="file" id="fileWOInput" accept="image/*,video/*,application/pdf" style="display: none;">
             </div>
             <div class="progress-container" id="uploadWOProgressContainer">
               <div class="progress-bar" id="uploadWOProgressBar"></div>

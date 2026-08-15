@@ -18,16 +18,16 @@ let isUploadActive = true; // true = upload file, false = paste link
 // Helper: Format string nomor telepon agar selalu diawali 0 untuk disimpan ke sheet
 function sanitizePhoneNumber(phoneNumber) {
   if (!phoneNumber) return "";
-  let trimmed = phoneNumber.trim();
-  if (trimmed === "") return "";
+  let phoneStr = String(phoneNumber).trim();
+  if (phoneStr === "") return "";
 
   // Jika input tak sengaja memuat link, ambil nomornya saja
-  if (trimmed.includes("wa.me/")) {
-    trimmed = trimmed.split("wa.me/")[1];
+  if (phoneStr.includes("wa.me/")) {
+    phoneStr = phoneStr.split("wa.me/")[1];
   }
 
   // Bersihkan karakter selain angka
-  let cleaned = trimmed.replace(/\D/g, "");
+  let cleaned = phoneStr.replace(/\D/g, "");
 
   if (cleaned.length > 0) {
     if (cleaned.startsWith("62")) {
@@ -37,17 +37,22 @@ function sanitizePhoneNumber(phoneNumber) {
     }
     return cleaned;
   }
-  return trimmed;
+  return phoneStr;
 }
 
 // Helper: Format string nomor telepon menjadi link WhatsApp clickable
 function formatWhatsAppLink(phoneNumber) {
   if (!phoneNumber) return "#";
-  let cleaned = phoneNumber.replace(/\D/g, "");
+  let phoneStr = String(phoneNumber).trim();
+  let cleaned = phoneStr.replace(/\D/g, "");
+  if (cleaned.length === 0) return "#";
+
   if (cleaned.startsWith("0")) {
     cleaned = "62" + cleaned.slice(1);
+  } else if (cleaned.startsWith("8")) {
+    cleaned = "62" + cleaned;
   }
-  return cleaned ? "https://wa.me/" + cleaned : "#";
+  return "https://wa.me/" + cleaned;
 }
 
 // --- Helper: Deteksi Halaman Aktif ---
@@ -125,10 +130,15 @@ async function handleFileProcess(file, progressBarId, progressContainerId, statu
 
   if (!file) return;
 
-  // Validasi ukuran berkas (3 MB max)
-  const maxBytes = 3 * 1024 * 1024;
+  // Validasi ukuran berkas (3 MB max, video max 30 MB)
+  const isVideo = file.type.startsWith("video/");
+  const maxBytes = isVideo ? 30 * 1024 * 1024 : 3 * 1024 * 1024;
   if (file.size > maxBytes) {
-    alert("Ukuran berkas melebihi batas maksimal 3MB. Silakan kompres berkas Anda terlebih dahulu.");
+    if (isVideo) {
+      alert("Ukuran video melebihi 30MB (sekitar 20 detik video Full HD). Harap rekam video yang lebih singkat.");
+    } else {
+      alert("Ukuran berkas melebihi batas maksimal 3MB. Silakan kompres berkas Anda terlebih dahulu.");
+    }
     return;
   }
 
@@ -216,6 +226,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
   const bar = document.getElementById(progressBarId);
   const text = document.getElementById(statusTextId);
   const retry = document.getElementById(retryBtnId);
+  const listContainer = document.getElementById("fileListContainer");
 
   if (!files || files.length === 0) return;
 
@@ -225,11 +236,19 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
   }
 
   uploadedFiles = [];
-  container.style.display = "block";
-  text.style.display = "flex";
-  retry.style.display = "none";
-  bar.style.width = "0%";
-  bar.style.backgroundColor = "var(--primary)";
+  
+  if (listContainer) {
+    container.style.display = "none";
+    text.style.display = "none";
+    listContainer.innerHTML = "";
+    listContainer.style.display = "flex";
+  } else {
+    container.style.display = "block";
+    text.style.display = "flex";
+    retry.style.display = "none";
+    bar.style.width = "0%";
+    bar.style.backgroundColor = "var(--primary)";
+  }
 
   let totalFiles = files.length;
   let processedFiles = 0;
@@ -237,20 +256,67 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
 
   for (let i = 0; i < totalFiles; i++) {
     const file = files[i];
-    text.querySelector("span").textContent = `Memproses file ${i+1}/${totalFiles}: ${file.name}...`;
+    
+    let fileItemEl = null;
+    let barFillEl = null;
+    let badgeEl = null;
+    
+    if (listContainer) {
+      fileItemEl = document.createElement("div");
+      fileItemEl.className = "file-progress-item";
+      
+      const readableSize = (file.size / (1024 * 1024)).toFixed(2) + " MB";
+      
+      fileItemEl.innerHTML = `
+        <div class="file-progress-header">
+          <div class="file-progress-info">
+            <span class="file-progress-name" title="${file.name}">${file.name}</span>
+            <span class="file-progress-size">${readableSize}</span>
+          </div>
+          <span class="file-progress-status-badge loading">Memproses...</span>
+        </div>
+        <div class="file-progress-bar-bg">
+          <div class="file-progress-bar-fill" style="width: 10%;"></div>
+        </div>
+      `;
+      listContainer.appendChild(fileItemEl);
+      barFillEl = fileItemEl.querySelector(".file-progress-bar-fill");
+      badgeEl = fileItemEl.querySelector(".file-progress-status-badge");
+    } else {
+      text.querySelector("span").textContent = `Memproses file ${i+1}/${totalFiles}: ${file.name}...`;
+    }
 
     try {
+      if (barFillEl) barFillEl.style.width = "30%";
       let finalData = "";
       if (file.type.startsWith("image/")) {
+        if (badgeEl) badgeEl.textContent = "Mengompres...";
         finalData = await compressImage(file);
       } else {
+        if (badgeEl) badgeEl.textContent = "Membaca...";
         finalData = await fileToBase64(file);
       }
+      
+      if (barFillEl) barFillEl.style.width = "70%";
 
       // Hitung approx size dari base64: length * 3 / 4
       const approxSize = (finalData.length * 3) / 4;
-      if (approxSize > 3 * 1024 * 1024) {
-        alert(`Berkas "${file.name}" melebihi 3MB setelah dikompres. Harap pilih berkas lain yang lebih kecil.`);
+      const isVideo = file.type.startsWith("video/");
+      const maxBytes = isVideo ? 30 * 1024 * 1024 : 3 * 1024 * 1024;
+      if (approxSize > maxBytes) {
+        if (badgeEl) {
+          badgeEl.textContent = "GAGAL";
+          badgeEl.className = "file-progress-status-badge error";
+        }
+        if (barFillEl) {
+          barFillEl.style.width = "100%";
+          barFillEl.style.backgroundColor = "var(--danger)";
+        }
+        if (isVideo) {
+          alert(`Berkas "${file.name}" melebihi 30MB. Harap rekam video yang lebih singkat (maks. sekitar 20 detik Full HD).`);
+        } else {
+          alert(`Berkas "${file.name}" melebihi 3MB setelah dikompres. Harap pilih berkas lain yang lebih kecil.`);
+        }
         hasError = true;
         break;
       }
@@ -261,22 +327,46 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
         name: file.name
       });
       processedFiles++;
-      bar.style.width = `${(processedFiles / totalFiles) * 100}%`;
+      
+      if (badgeEl) {
+        badgeEl.textContent = "SIAP KIRIM";
+        badgeEl.className = "file-progress-status-badge success";
+      }
+      if (barFillEl) {
+        barFillEl.style.width = "100%";
+        barFillEl.style.backgroundColor = "var(--success)";
+      }
+      
+      if (!listContainer) {
+        bar.style.width = `${(processedFiles / totalFiles) * 100}%`;
+      }
     } catch (err) {
       console.error(err);
+      if (badgeEl) {
+        badgeEl.textContent = "GAGAL";
+        badgeEl.className = "file-progress-status-badge error";
+      }
+      if (barFillEl) {
+        barFillEl.style.width = "100%";
+        barFillEl.style.backgroundColor = "var(--danger)";
+      }
       hasError = true;
       break;
     }
   }
 
   if (hasError) {
-    bar.style.backgroundColor = "var(--danger)";
-    text.querySelector("span").textContent = "Gagal memproses beberapa berkas.";
-    retry.style.display = "block";
-    retry.onclick = () => handleMultipleFileProcess(files, progressBarId, progressContainerId, statusTextId, retryBtnId);
+    if (!listContainer) {
+      bar.style.backgroundColor = "var(--danger)";
+      text.querySelector("span").textContent = "Gagal memproses beberapa berkas.";
+      retry.style.display = "block";
+      retry.onclick = () => handleMultipleFileProcess(files, progressBarId, progressContainerId, statusTextId, retryBtnId);
+    }
   } else {
-    bar.style.width = "100%";
-    text.querySelector("span").textContent = `Selesai memproses ${totalFiles} berkas. (Siap dikirim)`;
+    if (!listContainer) {
+      bar.style.width = "100%";
+      text.querySelector("span").textContent = `Selesai memproses ${totalFiles} berkas. (Siap dikirim)`;
+    }
   }
 }
 
@@ -364,50 +454,103 @@ function initIndexPage() {
       payload.fileLinkUrl = document.getElementById("fileLinkUrl").value;
     }
 
-    // Animasi tombol
-    btnSubmit.disabled = true;
-    const btnText = btnSubmit.querySelector("span");
-    const originalText = btnText.textContent;
-    btnText.textContent = "Mengirim Pengaduan...";
+    submitPayloadWithProgress(
+      API_URL,
+      payload,
+      btnSubmit,
+      (resData) => {
+        if (resData.success) {
+          // Tampilkan modal sukses
+          document.getElementById("resComplaintId").textContent = resData.data.id;
+          document.getElementById("resEmail").textContent = payload.email;
 
-    try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify(payload)
-      });
+          // Atur link pelacakan langsung
+          const trackLink = `track.html?id=${resData.data.id}&token=${resData.data.token}`;
+          document.getElementById("btnGoTrack").href = trackLink;
 
-      const resData = await response.json();
-      if (resData.success) {
-        // Tampilkan modal sukses
-        document.getElementById("resComplaintId").textContent = resData.data.id;
-        document.getElementById("resEmail").textContent = payload.email;
-
-        // Atur link pelacakan langsung
-        const trackLink = `track.html?id=${resData.data.id}&token=${resData.data.token}`;
-        document.getElementById("btnGoTrack").href = trackLink;
-
-        document.getElementById("successModal").style.display = "flex";
-        form.reset();
-        resetUploadState("uploadProgressContainer", "uploadStatusText");
-      } else {
-        alert("Gagal mengirim laporan: " + resData.message);
+          document.getElementById("successModal").style.display = "flex";
+          form.reset();
+          resetUploadState("uploadProgressContainer", "uploadStatusText");
+        } else {
+          alert("Gagal mengirim laporan: " + resData.message);
+        }
+      },
+      (err) => {
+        console.error(err);
+        alert("Terjadi kesalahan koneksi ke server atau: " + err.message);
       }
-    } catch (err) {
-      console.error(err);
-      alert("Terjadi kesalahan koneksi ke server. Silakan ulangi pengiriman.");
-    } finally {
-      btnSubmit.disabled = false;
-      btnText.textContent = originalText;
-    }
+    );
   });
 }
 
 function resetUploadState(progressContainerId, statusTextId) {
   uploadedFile = { data: "", mimeType: "", name: "" };
+  uploadedFiles = [];
   const cont = document.getElementById(progressContainerId);
   const text = document.getElementById(statusTextId);
   if (cont) cont.style.display = "none";
   if (text) text.style.display = "none";
+  const listCont = document.getElementById("fileListContainer");
+  if (listCont) {
+    listCont.innerHTML = "";
+    listCont.style.display = "none";
+  }
+}
+
+// Helper: Send JSON payload via XHR to monitor upload progress
+function submitPayloadWithProgress(url, payload, btnElement, successCallback, errorCallback) {
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", url, true);
+  xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
+
+  const btnTextEl = btnElement.querySelector("span") || btnElement;
+  const originalText = btnTextEl.textContent || btnTextEl.value || "";
+
+  const updateBtnText = (text) => {
+    if (btnTextEl.tagName === "INPUT") {
+      btnTextEl.value = text;
+    } else {
+      btnTextEl.textContent = text;
+    }
+  };
+
+  btnElement.disabled = true;
+  updateBtnText("Mengunggah... (0%)");
+
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      if (pct < 100) {
+        updateBtnText(`Mengunggah... (${pct}%)`);
+      } else {
+        updateBtnText("Memproses di server...");
+      }
+    }
+  };
+
+  xhr.onload = () => {
+    btnElement.disabled = false;
+    updateBtnText(originalText);
+    
+    if (xhr.status >= 200 && xhr.status < 300) {
+      try {
+        const resData = JSON.parse(xhr.responseText);
+        successCallback(resData);
+      } catch (err) {
+        errorCallback({ message: "Respon server tidak valid." });
+      }
+    } else {
+      errorCallback({ message: `HTTP Error ${xhr.status}` });
+    }
+  };
+
+  xhr.onerror = () => {
+    btnElement.disabled = false;
+    updateBtnText(originalText);
+    errorCallback({ message: "Koneksi jaringan terputus." });
+  };
+
+  xhr.send(JSON.stringify(payload));
 }
 
 function closeSuccessModal() {
@@ -487,28 +630,23 @@ function initTrackPage() {
       }
 
       const btnSubmit = document.getElementById("btnSubmitRebuttal");
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = "Mengirim Sanggahan...";
-
-      try {
-        const response = await fetch(API_URL, {
-          method: "POST",
-          body: JSON.stringify(payload)
-        });
-        const resData = await response.json();
-        if (resData.success) {
-          alert("Sanggahan berhasil terkirim. Status laporan telah berubah menjadi Bantahan.");
-          location.reload(); // Reload untuk memperbarui progress view
-        } else {
-          alert("Gagal mengirim sanggahan: " + resData.message);
+      submitPayloadWithProgress(
+        API_URL,
+        payload,
+        btnSubmit,
+        (resData) => {
+          if (resData.success) {
+            alert("Sanggahan berhasil terkirim. Status laporan telah berubah menjadi Bantahan.");
+            location.reload(); // Reload untuk memperbarui progress view
+          } else {
+            alert("Gagal mengirim sanggahan: " + resData.message);
+          }
+        },
+        (err) => {
+          console.error(err);
+          alert("Gagal tersambung ke server: " + err.message);
         }
-      } catch (err) {
-        console.error(err);
-        alert("Gagal tersambung ke server.");
-      } finally {
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = "Kirim Sanggahan";
-      }
+      );
     });
   }
 }
@@ -819,28 +957,23 @@ async function handleQuickUpdateSubmit(id, token) {
     payload.fileLinkUrl = document.getElementById("fileQuickLinkUrl").value;
   }
 
-  btn.disabled = true;
-  btn.textContent = "Menyimpan...";
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    const resData = await response.json();
-    if (resData.success) {
-      alert("Status laporan berhasil diperbarui dan notifikasi email telah terkirim.");
-      location.reload();
-    } else {
-      alert("Gagal menyimpan update: " + resData.message);
+  submitPayloadWithProgress(
+    API_URL,
+    payload,
+    btn,
+    (resData) => {
+      if (resData.success) {
+        alert("Status laporan berhasil diperbarui dan notifikasi email telah terkirim.");
+        location.reload();
+      } else {
+        alert("Gagal menyimpan update: " + resData.message);
+      }
+    },
+    (err) => {
+      console.error(err);
+      alert("Gagal terhubung ke server: " + err.message);
     }
-  } catch (err) {
-    console.error(err);
-    alert("Gagal terhubung ke server.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Simpan & Kirim Notifikasi";
-  }
+  );
 }
 
 // Admin login submit
@@ -1360,31 +1493,25 @@ async function handleReviewUpdateSubmit() {
     payload.fileLinkUrl = document.getElementById("fileRevLinkUrl").value;
   }
 
-  btn.disabled = true;
-  btn.textContent = "Menyimpan...";
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    const resData = await response.json();
-
-    if (resData.success) {
-      alert("Progress laporan berhasil diperbarui!");
-      closeReviewModal();
-      // Reload daftar reports secara real-time tanpa refresh halaman
-      fetchReportsList();
-    } else {
-      alert("Gagal memperbarui status: " + resData.message);
+  submitPayloadWithProgress(
+    API_URL,
+    payload,
+    btn,
+    (resData) => {
+      if (resData.success) {
+        alert("Progress laporan berhasil diperbarui!");
+        closeReviewModal();
+        // Reload daftar reports secara real-time tanpa refresh halaman
+        fetchReportsList();
+      } else {
+        alert("Gagal memperbarui status: " + resData.message);
+      }
+    },
+    (err) => {
+      console.error(err);
+      alert("Gagal menghubungi server backend: " + err.message);
     }
-  } catch (err) {
-    console.error(err);
-    alert("Gagal menghubungi server backend.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Simpan Perubahan";
-  }
+  );
 }
 
 // ==========================================
@@ -1753,31 +1880,25 @@ async function submitWOComplete() {
     payload.fileLinkUrl = document.getElementById("fileWOLinkUrl").value;
   }
 
-  btn.disabled = true;
-  btn.textContent = "Menyimpan...";
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      body: JSON.stringify(payload)
-    });
-    const resData = await response.json();
-
-    if (resData.success) {
-      alert("Work Order berhasil diselesaikan!");
-      closeWOCompleteModal();
-      fetchWorkOrdersList();
-      fetchReportsList();
-    } else {
-      alert("Gagal menyelesaikan Work Order: " + resData.message);
+  submitPayloadWithProgress(
+    API_URL,
+    payload,
+    btn,
+    (resData) => {
+      if (resData.success) {
+        alert("Work Order berhasil diselesaikan!");
+        closeWOCompleteModal();
+        fetchWorkOrdersList();
+        fetchReportsList();
+      } else {
+        alert("Gagal menyelesaikan Work Order: " + resData.message);
+      }
+    },
+    (err) => {
+      console.error(err);
+      alert("Gagal menghubungi server: " + err.message);
     }
-  } catch (err) {
-    console.error(err);
-    alert("Gagal menghubungi server.");
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Selesaikan & Simpan";
-  }
+  );
 }
 
 // ==========================================

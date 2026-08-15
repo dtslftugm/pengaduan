@@ -933,3 +933,91 @@ tr:hover td {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================
+   FILE LIST PROGRESS ITEMS
+   ========================================== */
+
+.file-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 15px;
+  text-align: left;
+}
+
+.file-progress-item {
+  background-color: var(--neutral-white);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: var(--transition);
+}
+
+.file-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-progress-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 70%;
+}
+
+.file-progress-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-progress-size {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.file-progress-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.file-progress-status-badge.loading {
+  background-color: #eff6ff;
+  color: #1d4ed8;
+}
+
+.file-progress-status-badge.success {
+  background-color: #ecfdf5;
+  color: #047857;
+}
+
+.file-progress-status-badge.error {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.file-progress-bar-bg {
+  background-color: var(--border-color);
+  border-radius: 4px;
+  height: 6px;
+  width: 100%;
+  overflow: hidden;
+}
+
+.file-progress-bar-fill {
+  background-color: var(--secondary);
+  height: 100%;
+  width: 0%;
+  transition: width 0.1s ease;
+}
