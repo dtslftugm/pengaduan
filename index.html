@@ -94,7 +94,7 @@
           <!-- Email UGM -->
           <div class="form-group">
             <label for="email">Email UGM / Email Aktif *</label>
-            <input type="email" id="email" name="email" placeholder="contoh@mail.ugm.ac.id">
+            <input type="email" id="email" name="email" placeholder="contoh@mail.ugm.ac.id" required>
           </div>
 
           <!-- Nomor HP -->
@@ -224,6 +224,129 @@
   </div>
 
   <script src="js/app.js"></script>
+
+  <!-- ============================================================ -->
+  <!-- DEBUG PANEL (SEMENTARA) - Hapus setelah debugging selesai   -->
+  <!-- ============================================================ -->
+  <style>
+    #dbgFab {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 52px;
+      height: 52px;
+      font-size: 22px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, .35);
+      display: flex;
+      align-items: center;
+      justify-content: center
+    }
+
+    #dbgPanel {
+      display: none;
+      position: fixed;
+      bottom: 80px;
+      right: 12px;
+      left: 12px;
+      z-index: 9998;
+      background: #111;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 11px;
+      border-radius: 10px;
+      padding: 12px;
+      max-height: 55vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .6)
+    }
+
+    #dbgPanel .err {
+      color: #f87171
+    }
+
+    #dbgPanel .warn {
+      color: #fbbf24
+    }
+
+    #dbgPanel .info {
+      color: #60a5fa
+    }
+
+    #dbgHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 6px
+    }
+
+    #dbgHeader span {
+      color: #ccc;
+      font-weight: bold;
+      font-size: 12px
+    }
+
+    #dbgHeader button {
+      background: #333;
+      color: #ccc;
+      border: none;
+      border-radius: 4px;
+      padding: 2px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      margin-left: 6px
+    }
+  </style>
+  <button id="dbgFab" title="Debug"
+    onclick="var p=document.getElementById('dbgPanel');p.style.display=p.style.display==='block'?'none':'block'">🐛</button>
+  <div id="dbgPanel">
+    <div id="dbgHeader">
+      <span>🐛 Debug Log</span>
+      <div>
+        <button onclick="document.getElementById('dbgLog').innerHTML=''">Clear</button>
+        <button onclick="dbgTestPing()">Test API</button>
+        <button onclick="document.getElementById('dbgPanel').style.display='none'">✕</button>
+      </div>
+    </div>
+    <div id="dbgLog"></div>
+  </div>
+  <script>
+    (function () {
+      var log = document.getElementById('dbgLog');
+      function addLine(cls, args) {
+        var ts = new Date().toLocaleTimeString('id');
+        var msg = Array.from(args).map(function (a) { if (typeof a === 'object') try { return JSON.stringify(a, null, 1); } catch (e) { return String(a); } return String(a); }).join(' ');
+        var el = document.createElement('div'); el.className = cls;
+        el.textContent = '[' + ts + '] ' + msg; log.appendChild(el); log.scrollTop = log.scrollHeight;
+      }
+      var _l = console.log, _e = console.error, _w = console.warn;
+      console.log = function () { addLine('', arguments); _l.apply(console, arguments); };
+      console.error = function () { addLine('err', arguments); _e.apply(console, arguments); };
+      console.warn = function () { addLine('warn', arguments); _w.apply(console, arguments); };
+      window.onerror = function (msg, src, line, col) { addLine('err', ['[JS ERR] ' + msg + ' @' + src + ':' + line]); };
+      window.addEventListener('unhandledrejection', function (e) { addLine('err', ['[PROMISE] ' + (e.reason ? e.reason.message || e.reason : e)]); });
+      var _a = window.alert;
+      window.alert = function (msg) { addLine('warn', ['[ALERT] ' + msg]); _a.call(window, msg); };
+      addLine('info', ['Debug aktif | UA: ' + navigator.userAgent.substring(0, 60)]);
+      window.dbgTestPing = function () {
+        var url = typeof API_URL !== 'undefined' ? API_URL : '(API_URL tidak ada)';
+        addLine('info', ['GET test: ' + url.substring(0, 60) + '...']);
+        fetch(url + '?action=get_status&id=TEST&token=TEST')
+          .then(function (r) { addLine('info', ['Status: ' + r.status]); return r.text(); })
+          .then(function (t) { addLine('info', ['Body: ' + t.substring(0, 120)]); })
+          .catch(function (e) { addLine('err', ['Fetch error: ' + e.message]); });
+      };
+    })();
+  </script>
+  <!-- END DEBUG PANEL -->
+
 </body>
 
 </html>
