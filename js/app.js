@@ -583,6 +583,55 @@ async function submitPayloadWithProgress(url, payload, btnElement, successCallba
   }
 }
 
+// Helper: Render satu atau beberapa link file menjadi attachment chips terpisah
+function renderAttachmentLinks(urlStr, targetLinkId) {
+  const targetLink = document.getElementById(targetLinkId);
+  if (!targetLink) return;
+  const container = targetLink.parentElement;
+
+  // Bersihkan attachment chips sebelumnya (jika ada) saat dimuat ulang
+  const existingChips = container.querySelectorAll('.multi-attachment-chip');
+  existingChips.forEach(el => el.remove());
+
+  if (!urlStr) {
+    targetLink.style.display = "none";
+    return;
+  }
+
+  const urls = urlStr.split(',').map(s => s.trim()).filter(s => s);
+
+  if (urls.length === 1) {
+    // Kembalikan ke tampilan default link tunggal
+    targetLink.href = urls[0];
+    targetLink.style.display = "inline-block";
+  } else {
+    // Sembunyikan default link dan buat chips terpisah untuk multi-lampiran
+    targetLink.style.display = "none";
+    urls.forEach((url, index) => {
+      const a = document.createElement("a");
+      a.href = url;
+      a.target = "_blank";
+      // Ambil class bawaan dari targetLink (misal: disclaimer-link) dan tambah class khusus
+      a.className = targetLink.className + " multi-attachment-chip";
+      a.innerHTML = `📄 Lampiran ${index + 1}`;
+
+      // Styling inline khusus untuk memformat chip agar tampil rapi dan responsif
+      a.style.display = "inline-flex";
+      a.style.alignItems = "center";
+      a.style.marginRight = "8px";
+      a.style.marginBottom = "8px";
+      a.style.padding = "6px 12px";
+      a.style.backgroundColor = "rgba(0, 168, 150, 0.1)"; // hijau transparan khas DTSL
+      a.style.border = "1px solid rgba(0, 168, 150, 0.2)";
+      a.style.borderRadius = "4px";
+      a.style.textDecoration = "none";
+      a.style.fontWeight = "600";
+
+      container.appendChild(a);
+    });
+  }
+}
+
 function closeSuccessModal() {
   document.getElementById("successModal").style.display = "none";
 }
@@ -727,7 +776,7 @@ async function fetchComplaintStatus(id, token) {
       // File lampiran
       const fileRow = document.getElementById("detFileRow");
       if (data.fileLampiranUrl) {
-        document.getElementById("detFileLink").href = data.fileLampiranUrl;
+        renderAttachmentLinks(data.fileLampiranUrl, "detFileLink");
         fileRow.style.display = "flex";
       } else {
         fileRow.style.display = "none";
@@ -942,7 +991,7 @@ async function fetchQuickReport(id, token) {
       badge.className = "badge badge-" + data.statusProgress.toLowerCase();
 
       if (data.fileLampiranUrl) {
-        document.getElementById("quickFileLink").href = data.fileLampiranUrl;
+        renderAttachmentLinks(data.fileLampiranUrl, "quickFileLink");
         document.getElementById("quickFileRow").style.display = "flex";
       }
 
@@ -1383,7 +1432,7 @@ function openReviewModal(id) {
   // File lampiran
   const fileRow = document.getElementById("revFileRow");
   if (selectedReport.fileLampiranUrl) {
-    document.getElementById("revFileLink").href = selectedReport.fileLampiranUrl;
+    renderAttachmentLinks(selectedReport.fileLampiranUrl, "revFileLink");
     fileRow.style.display = "flex";
   } else {
     fileRow.style.display = "none";
