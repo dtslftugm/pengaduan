@@ -517,15 +517,8 @@ function resetUploadState(progressContainerId, statusTextId) {
   }
 }
 
-// Helper: Send JSON payload via XHR to monitor upload progress
-function submitPayloadWithProgress(url, payload, btnElement, successCallback, errorCallback) {
-  const xhr = new XMLHttpRequest();
-  xhr.open("POST", url, true);
-  xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
-
-  // Timeout 120 detik (2 menit) — penting untuk koneksi mobile yang lebih lambat
-  xhr.timeout = 120000;
-
+// Helper: Send JSON payload via fetch API (Lebih stabil untuk POST redirect CORS di mobile)
+async function submitPayloadWithProgress(url, payload, btnElement, successCallback, errorCallback) {
   const btnTextEl = btnElement.querySelector("span") || btnElement;
   const originalText = btnTextEl.textContent || btnTextEl.value || "";
 
@@ -538,61 +531,56 @@ function submitPayloadWithProgress(url, payload, btnElement, successCallback, er
   };
 
   btnElement.disabled = true;
-  updateBtnText("Mengunggah... (0%)");
+  updateBtnText("Mengunggah data... Harap tunggu");
 
-  xhr.upload.onprogress = (e) => {
-    if (e.lengthComputable) {
-      const pct = Math.round((e.loaded / e.total) * 100);
-      if (pct < 100) {
-        updateBtnText(`Mengunggah... (${pct}%)`);
-      } else {
-        updateBtnText("Memproses di server...");
-      }
+  // Timeout 120 detik untuk mengantisipasi jaringan lambat saat upload file besar
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 120000);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      // Membiarkan fetch otomatis mengatur header Content-Type menjadi text/plain 
+      // yang menghindari request preflight OPTIONS yang dapat ditolak oleh Google Apps Script di mobile browser
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    updateBtnText("Memproses di server...");
+
+    if (!response.ok) {
+      throw new Error(`Server merespons dengan kode HTTP ${response.status}`);
     }
-  };
 
-  xhr.onload = () => {
+    const resData = await response.json();
+
     btnElement.disabled = false;
     updateBtnText(originalText);
 
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        const resData = JSON.parse(xhr.responseText);
-        successCallback(resData);
-      } catch (err) {
-        errorCallback({ message: "Respon server tidak valid (JSON parse error). Silakan coba lagi." });
-      }
+    successCallback(resData);
+
+  } catch (err) {
+    clearTimeout(timeoutId);
+    btnElement.disabled = false;
+    updateBtnText(originalText);
+
+    if (err.name === "AbortError") {
+      errorCallback({
+        message:
+          "Waktu pengiriman habis (timeout 2 menit). Koneksi terputus karena terlalu lama.\n\n" +
+          "Saran: Kurangi ukuran file lampiran atau pastikan sinyal stabil."
+      });
     } else {
-      errorCallback({ message: `Server mengembalikan error HTTP ${xhr.status}. Silakan coba lagi.` });
+      errorCallback({
+        message:
+          "Gagal terhubung ke server atau request diblokir (CORS).\n\n" +
+          "Penyebab umum: Koneksi internet bermasalah, atau fitur privasi browser memblokir request antar domain.\n\n" +
+          "Coba gunakan browser lain."
+      });
     }
-  };
-
-  xhr.onerror = () => {
-    btnElement.disabled = false;
-    updateBtnText(originalText);
-    // onerror di XHR bisa dipicu oleh: CORS error, payload terlalu besar,
-    // network drop, atau server menolak koneksi. Bukan selalu jaringan terputus.
-    errorCallback({
-      message:
-        "Gagal terhubung ke server. Kemungkinan penyebab:\n" +
-        "• Ukuran lampiran terlalu besar (coba kurangi file)\n" +
-        "• Koneksi internet tidak stabil\n" +
-        "• Server sedang sibuk\n\n" +
-        "Jika tidak ada lampiran file, coba submit ulang beberapa saat lagi."
-    });
-  };
-
-  xhr.ontimeout = () => {
-    btnElement.disabled = false;
-    updateBtnText(originalText);
-    errorCallback({
-      message:
-        "Waktu pengiriman habis (timeout 2 menit). Server membutuhkan waktu terlalu lama.\n\n" +
-        "Saran: Kurangi ukuran/jumlah file lampiran, lalu coba lagi."
-    });
-  };
-
-  xhr.send(JSON.stringify(payload));
+  }
 }
 
 function closeSuccessModal() {
