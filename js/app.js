@@ -236,7 +236,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
   }
 
   uploadedFiles = [];
-  
+
   if (listContainer) {
     container.style.display = "none";
     text.style.display = "none";
@@ -256,17 +256,17 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
 
   for (let i = 0; i < totalFiles; i++) {
     const file = files[i];
-    
+
     let fileItemEl = null;
     let barFillEl = null;
     let badgeEl = null;
-    
+
     if (listContainer) {
       fileItemEl = document.createElement("div");
       fileItemEl.className = "file-progress-item";
-      
+
       const readableSize = (file.size / (1024 * 1024)).toFixed(2) + " MB";
-      
+
       fileItemEl.innerHTML = `
         <div class="file-progress-header">
           <div class="file-progress-info">
@@ -283,7 +283,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
       barFillEl = fileItemEl.querySelector(".file-progress-bar-fill");
       badgeEl = fileItemEl.querySelector(".file-progress-status-badge");
     } else {
-      text.querySelector("span").textContent = `Memproses file ${i+1}/${totalFiles}: ${file.name}...`;
+      text.querySelector("span").textContent = `Memproses file ${i + 1}/${totalFiles}: ${file.name}...`;
     }
 
     try {
@@ -296,7 +296,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
         if (badgeEl) badgeEl.textContent = "Membaca...";
         finalData = await fileToBase64(file);
       }
-      
+
       if (barFillEl) barFillEl.style.width = "70%";
 
       // Hitung approx size dari base64: length * 3 / 4
@@ -327,7 +327,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
         name: file.name
       });
       processedFiles++;
-      
+
       if (badgeEl) {
         badgeEl.textContent = "SIAP KIRIM";
         badgeEl.className = "file-progress-status-badge success";
@@ -336,7 +336,7 @@ async function handleMultipleFileProcess(files, progressBarId, progressContainer
         barFillEl.style.width = "100%";
         barFillEl.style.backgroundColor = "var(--success)";
       }
-      
+
       if (!listContainer) {
         bar.style.width = `${(processedFiles / totalFiles) * 100}%`;
       }
@@ -447,11 +447,31 @@ function initIndexPage() {
     if (isUploadActive && uploadedFiles.length > 0) {
       payload.files = uploadedFiles;
     } else if (isUploadActive && uploadedFile.data) {
-      // Fallback fallback untuk single file jika karena suatu hal `uploadedFiles` kosong
+      // Fallback untuk single file jika karena suatu hal `uploadedFiles` kosong
       payload.files = [uploadedFile];
     } else if (!isUploadActive) {
       // Jika tempel link aktif
       payload.fileLinkUrl = document.getElementById("fileLinkUrl").value;
+    }
+
+    // Validasi ukuran total payload file sebelum kirim (penting untuk mobile)
+    // Base64 data sudah di-decode, raw bytes = length * 3/4
+    // Batas 8MB base64 string gabungan (~6MB raw) agar aman di mobile
+    const MAX_TOTAL_PAYLOAD_BYTES = 8 * 1024 * 1024;
+    if (payload.files && payload.files.length > 0) {
+      let totalBase64Length = 0;
+      for (const f of payload.files) {
+        if (f.data) totalBase64Length += f.data.length;
+      }
+      if (totalBase64Length > MAX_TOTAL_PAYLOAD_BYTES) {
+        const totalMB = (totalBase64Length / (1024 * 1024)).toFixed(1);
+        alert(
+          `Total ukuran semua lampiran (${totalMB} MB) melebihi batas 8 MB untuk pengiriman.\n\n` +
+          `Silakan kurangi jumlah atau ukuran file lampiran. ` +
+          `Atau gunakan opsi "Tempel Link" dan bagikan file via Google Drive / link eksternal.`
+        );
+        return;
+      }
     }
 
     submitPayloadWithProgress(
@@ -503,6 +523,9 @@ function submitPayloadWithProgress(url, payload, btnElement, successCallback, er
   xhr.open("POST", url, true);
   xhr.setRequestHeader("Content-Type", "text/plain;charset=utf-8");
 
+  // Timeout 120 detik (2 menit) — penting untuk koneksi mobile yang lebih lambat
+  xhr.timeout = 120000;
+
   const btnTextEl = btnElement.querySelector("span") || btnElement;
   const originalText = btnTextEl.textContent || btnTextEl.value || "";
 
@@ -531,23 +554,42 @@ function submitPayloadWithProgress(url, payload, btnElement, successCallback, er
   xhr.onload = () => {
     btnElement.disabled = false;
     updateBtnText(originalText);
-    
+
     if (xhr.status >= 200 && xhr.status < 300) {
       try {
         const resData = JSON.parse(xhr.responseText);
         successCallback(resData);
       } catch (err) {
-        errorCallback({ message: "Respon server tidak valid." });
+        errorCallback({ message: "Respon server tidak valid (JSON parse error). Silakan coba lagi." });
       }
     } else {
-      errorCallback({ message: `HTTP Error ${xhr.status}` });
+      errorCallback({ message: `Server mengembalikan error HTTP ${xhr.status}. Silakan coba lagi.` });
     }
   };
 
   xhr.onerror = () => {
     btnElement.disabled = false;
     updateBtnText(originalText);
-    errorCallback({ message: "Koneksi jaringan terputus." });
+    // onerror di XHR bisa dipicu oleh: CORS error, payload terlalu besar,
+    // network drop, atau server menolak koneksi. Bukan selalu jaringan terputus.
+    errorCallback({
+      message:
+        "Gagal terhubung ke server. Kemungkinan penyebab:\n" +
+        "• Ukuran lampiran terlalu besar (coba kurangi file)\n" +
+        "• Koneksi internet tidak stabil\n" +
+        "• Server sedang sibuk\n\n" +
+        "Jika tidak ada lampiran file, coba submit ulang beberapa saat lagi."
+    });
+  };
+
+  xhr.ontimeout = () => {
+    btnElement.disabled = false;
+    updateBtnText(originalText);
+    errorCallback({
+      message:
+        "Waktu pengiriman habis (timeout 2 menit). Server membutuhkan waktu terlalu lama.\n\n" +
+        "Saran: Kurangi ukuran/jumlah file lampiran, lalu coba lagi."
+    });
   };
 
   xhr.send(JSON.stringify(payload));
@@ -931,11 +973,11 @@ async function fetchQuickReport(id, token) {
 
       // Pre-fill form dengan status terkini agar staf tidak salah pilih
       const statusMap = {
-        "Pending":   "Diproses",
-        "Diproses":  "Diproses",
-        "Bantahan":  "Diproses",
-        "Selesai":   "Selesai",
-        "Ditolak":   "Ditolak"
+        "Pending": "Diproses",
+        "Diproses": "Diproses",
+        "Bantahan": "Diproses",
+        "Selesai": "Selesai",
+        "Ditolak": "Ditolak"
       };
       document.getElementById("quickNewStatus").value = statusMap[data.statusProgress] || "Diproses";
 
@@ -1170,7 +1212,7 @@ function switchTab(tab) {
   const btnList = document.getElementById("tabBtnList");
   const btnStats = document.getElementById("tabBtnStats");
   const btnWO = document.getElementById("tabBtnWO");
-  
+
   const contList = document.getElementById("tabContentList");
   const contStats = document.getElementById("tabContentStats");
   const contWO = document.getElementById("tabContentWO");
@@ -1179,7 +1221,7 @@ function switchTab(tab) {
   btnList.classList.remove("active");
   btnStats.classList.remove("active");
   if (btnWO) btnWO.classList.remove("active");
-  
+
   contList.style.display = "none";
   contStats.style.display = "none";
   if (contWO) contWO.style.display = "none";
@@ -1227,10 +1269,10 @@ async function fetchSupervisorStats() {
     // ── WO KPI Cards ─────────────────────────────────────
     if (stats.woStats) {
       const wo = stats.woStats;
-      document.getElementById("statTotalWO").textContent      = wo.total;
-      document.getElementById("statWOInProgress").textContent  = wo.diproses;
-      document.getElementById("statWODone").textContent        = wo.selesai;
-      document.getElementById("statAvgWODuration").innerHTML   =
+      document.getElementById("statTotalWO").textContent = wo.total;
+      document.getElementById("statWOInProgress").textContent = wo.diproses;
+      document.getElementById("statWODone").textContent = wo.selesai;
+      document.getElementById("statAvgWODuration").innerHTML =
         `${wo.avgDurasiMenit} <span style="font-size:1rem;font-weight:normal;color:#64748b;">Menit</span>`;
     }
 
@@ -1244,7 +1286,7 @@ async function fetchSupervisorStats() {
     tbody.innerHTML = "";
     categories.forEach(cat => {
       const count = stats.categoryStats[cat] || 0;
-      const avg   = stats.avgResolutionDaysPerCategory[cat] || "-";
+      const avg = stats.avgResolutionDaysPerCategory[cat] || "-";
       const row = document.createElement("tr");
       row.innerHTML = `
         <td><strong>${cat}</strong></td>
@@ -1257,7 +1299,7 @@ async function fetchSupervisorStats() {
     // ── Chart 1: Donut – Distribusi Status ───────────────
     const statusLabels = ["Pending", "Diproses", "Selesai", "Ditolak", "Bantahan"];
     const statusColors = ["#f4a261", "#00a896", "#2a9d8f", "#e76f51", "#c1121f"];
-    const statusData   = statusLabels.map(l => stats.statusStats[l] || 0);
+    const statusData = statusLabels.map(l => stats.statusStats[l] || 0);
     const ctxPie = document.getElementById("chartStatusDist").getContext("2d");
     if (chartStatusInst) chartStatusInst.destroy();
     chartStatusInst = new Chart(ctxPie, {
@@ -1274,7 +1316,7 @@ async function fetchSupervisorStats() {
 
     // ── Chart 2: Bar – Aduan per Kategori ────────────────
     const shortLabels = categories.map(c => c.replace("Layanan ", ""));
-    const catData     = categories.map(c => stats.categoryStats[c] || 0);
+    const catData = categories.map(c => stats.categoryStats[c] || 0);
     const ctxBar = document.getElementById("chartKategori").getContext("2d");
     if (chartKategoriInst) chartKategoriInst.destroy();
     chartKategoriInst = new Chart(ctxBar, {
@@ -1298,7 +1340,7 @@ async function fetchSupervisorStats() {
     });
 
     // ── Negligence Alerts ────────────────────────────────
-    const alertBox  = document.getElementById("negligenceAlertBox");
+    const alertBox = document.getElementById("negligenceAlertBox");
     const alertCont = document.getElementById("negligentListContainer");
     alertCont.innerHTML = "";
     if (stats.negligentReports && stats.negligentReports.length > 0) {
@@ -1379,14 +1421,14 @@ function openReviewModal(id) {
   // ── Pre-fill Form (Status & Catatan) ────────────────
   // Petakan status yang tidak ada di dropdown ke nilai yang paling logis
   const statusMap = {
-    "Pending":   "Diproses",
-    "Diproses":  "Diproses",
-    "Bantahan":  "Diproses",   // saat ada bantahan, staf harus proses ulang
-    "Selesai":   "Selesai",
-    "Ditolak":   "Ditolak"
+    "Pending": "Diproses",
+    "Diproses": "Diproses",
+    "Bantahan": "Diproses",   // saat ada bantahan, staf harus proses ulang
+    "Selesai": "Selesai",
+    "Ditolak": "Ditolak"
   };
   const mappedStatus = statusMap[selectedReport.statusProgress] || "Diproses";
-  
+
   // Set nilai dropdown dengan cara yang pasti bekerja di semua browser
   const selectEl = document.getElementById("revNewStatus");
   selectEl.value = "";                   // reset dulu ke placeholder
@@ -1394,7 +1436,7 @@ function openReviewModal(id) {
 
   // Pre-fill catatan staf sebelumnya ke textarea
   document.getElementById("revCatatan").value = selectedReport.catatanStaf || "";
-  
+
   resetUploadState("uploadRevProgressContainer", "uploadRevStatusText");
 
   // Tampilkan tombol delegasi WO jika role Supervisor
@@ -1422,7 +1464,7 @@ function closeReviewModal() {
 // Fetch riwayat aktivitas dari Log_Aktivitas backend
 async function fetchActivityLog(aduId) {
   const email = sessionStorage.getItem("admin_email");
-  const pass  = sessionStorage.getItem("admin_pass");
+  const pass = sessionStorage.getItem("admin_pass");
   const loading = document.getElementById("revActivityLoading");
   const timeline = document.getElementById("revActivityTimeline");
   const emptyMsg = document.getElementById("revActivityEmpty");
@@ -1432,7 +1474,7 @@ async function fetchActivityLog(aduId) {
 
   try {
     const response = await fetch(`${API_URL}?action=get_activity_log&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}&aduId=${encodeURIComponent(aduId)}`);
-    const resData  = await response.json();
+    const resData = await response.json();
 
     if (resData.success && resData.data.length > 0) {
       renderActivityTimeline(resData.data);
@@ -1453,17 +1495,17 @@ function renderActivityTimeline(logs) {
 
   // Label & warna per tipe aksi
   const aksiMeta = {
-    "STATUS_UPDATED":     { label: "Update Status",         color: "#00a896", icon: "✏️" },
-    "WO_STARTED":         { label: "WO Mulai Dikerjakan",   color: "#f4a261", icon: "▶️" },
-    "WO_COMPLETED":       { label: "WO Selesai",            color: "#2a9d8f", icon: "✅" },
-    "ADU_AUTO_COMPLETED": { label: "Aduan Ditutup Otomatis",color: "#2a9d8f", icon: "🏁" },
-    "WO_CREATED":         { label: "Work Order Dibuat",     color: "#0d233a", icon: "📋" },
-    "BANTAHAN":           { label: "Bantahan Pelapor",      color: "#e76f51", icon: "⚠️" }
+    "STATUS_UPDATED": { label: "Update Status", color: "#00a896", icon: "✏️" },
+    "WO_STARTED": { label: "WO Mulai Dikerjakan", color: "#f4a261", icon: "▶️" },
+    "WO_COMPLETED": { label: "WO Selesai", color: "#2a9d8f", icon: "✅" },
+    "ADU_AUTO_COMPLETED": { label: "Aduan Ditutup Otomatis", color: "#2a9d8f", icon: "🏁" },
+    "WO_CREATED": { label: "Work Order Dibuat", color: "#0d233a", icon: "📋" },
+    "BANTAHAN": { label: "Bantahan Pelapor", color: "#e76f51", icon: "⚠️" }
   };
 
   logs.forEach(log => {
     const meta = aksiMeta[log.aksi] || { label: log.aksi, color: "#64748b", icon: "📌" };
-    const ts   = log.timestamp ? formatDate(log.timestamp) : "-";
+    const ts = log.timestamp ? formatDate(log.timestamp) : "-";
 
     // Parse detail: pisahkan catatan dari URL bukti
     let detailHtml = "";
@@ -1548,23 +1590,23 @@ async function handleReviewUpdateSubmit() {
 
 function openWOCreateModal() {
   if (!selectedReport) return;
-  
+
   // Tutup review modal sementara
   document.getElementById("reviewModal").style.display = "none";
 
   document.getElementById("woCreateAduId").value = selectedReport.id;
   document.getElementById("woCreateLabelId").textContent = selectedReport.id;
-  
+
   document.getElementById("woCreateKategori").value = selectedReport.kategori;
   document.getElementById("woCreateLabelKategori").textContent = selectedReport.kategori;
-  
+
   // Reset fields
   document.getElementById("woCreateLokasi").value = "";
   document.getElementById("woCreateDeskripsi").value = "";
   document.getElementById("woCreatePrioritas").value = "3";
-  
+
   document.getElementById("woCreateModal").style.display = "flex";
-  
+
   // Load staff
   fetchStaffListForWO(selectedReport.kategori);
 }
@@ -1579,13 +1621,13 @@ async function fetchStaffListForWO(kategori) {
   const email = sessionStorage.getItem("admin_email");
   const pass = sessionStorage.getItem("admin_pass");
   const selectEl = document.getElementById("woCreateAssignee");
-  
+
   selectEl.innerHTML = `<option value="" disabled selected>Memuat daftar staf...</option>`;
-  
+
   try {
     const response = await fetch(`${API_URL}?action=get_staff_list&email=${encodeURIComponent(email)}&password=${encodeURIComponent(pass)}&kategori=${encodeURIComponent(kategori)}`);
     const resData = await response.json();
-    
+
     if (resData.success) {
       selectEl.innerHTML = `<option value="" disabled selected>Pilih Staf Penanggung Jawab</option>`;
       if (resData.data.length === 0) {
@@ -1614,16 +1656,16 @@ async function submitWOCreate() {
   const deskripsi = document.getElementById("woCreateDeskripsi").value.trim();
   const assigneeEmail = document.getElementById("woCreateAssignee").value;
   const prioritas = document.getElementById("woCreatePrioritas").value;
-  
+
   if (!assigneeEmail) {
     alert("Silakan pilih staf penanggung jawab.");
     return;
   }
-  
+
   const btn = document.getElementById("btnWOCreateSubmit");
   btn.disabled = true;
   btn.textContent = "Menyimpan...";
-  
+
   const payload = {
     action: "create_work_order",
     email: sessionStorage.getItem("admin_email"),
@@ -1635,14 +1677,14 @@ async function submitWOCreate() {
     assigneeEmail: assigneeEmail,
     prioritas: prioritas
   };
-  
+
   try {
     const response = await fetch(API_URL, {
       method: "POST",
       body: JSON.stringify(payload)
     });
     const resData = await response.json();
-    
+
     if (resData.success) {
       alert("Work Order berhasil dibuat dan didelegasikan!");
       document.getElementById("woCreateModal").style.display = "none";
@@ -1714,17 +1756,17 @@ function renderWorkOrders() {
     card.className = "wo-card";
     card.dataset.woId = wo.WO_ID;
     card.style.cssText = "background: #fff; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); padding: 16px; border-radius: var(--border-radius-sm); cursor: grab; display: flex; flex-direction: column; gap: 8px;";
-    
+
     // Status color
     let statusColor = "#64748b";
     if (wo.Status_WO === "Open") statusColor = "var(--primary)";
     if (wo.Status_WO === "Diproses") statusColor = "var(--accent)";
     if (wo.Status_WO === "Selesai") statusColor = "var(--success)";
-    
+
     // Tentukan aksi / tombol untuk PIC terkait
     const email = sessionStorage.getItem("admin_email");
     let actionButtons = "";
-    
+
     if (wo.Assignee_Email === email && wo.Status_WO !== "Selesai") {
       if (wo.Status_WO === "Open") {
         actionButtons = `<button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="startWorkOrder('${wo.WO_ID}')">Mulai Kerjakan ▶</button>`;
@@ -1757,9 +1799,9 @@ function renderWorkOrders() {
 
   // Init Sortable JS
   if (sortableInstance) sortableInstance.destroy();
-  
+
   // Hanya Supervisor atau PIC terkait yang boleh reorder. Asumsi semua PIC boleh reorder miliknya.
-  const isDraggable = true; 
+  const isDraggable = true;
   if (isDraggable) {
     sortableInstance = Sortable.create(container, {
       animation: 150,
@@ -1780,7 +1822,7 @@ async function saveWOPriority() {
   const container = document.getElementById("woListContainer");
   const cards = container.querySelectorAll('.wo-card');
   const updates = [];
-  
+
   cards.forEach((card, index) => {
     updates.push({
       woId: card.dataset.woId,
@@ -1866,7 +1908,7 @@ function openWOCompleteModal(woId) {
   document.getElementById("woIdToComplete").value = woId;
   document.getElementById("woCompleteLabelId").textContent = woId;
   document.getElementById("woCompleteCatatan").value = "";
-  
+
   // Reset upload
   isUploadActive = true;
   document.getElementById("btnToggleWOUpload").classList.add("active");
